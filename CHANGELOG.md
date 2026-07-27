@@ -1,3 +1,7 @@
+# Version 0.20.0 (not released yet)
+
+- Add setting to tweak line height
+
 # Version 0.19.0
 
 - Added sidebar with description of subreddit, links etc.

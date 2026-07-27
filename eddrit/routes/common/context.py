@@ -7,26 +7,12 @@ from starlette.requests import Request
 
 from eddrit import models
 from eddrit.models.settings import LayoutMode, LineHeightMode, Theme, ThumbnailsMode
-from eddrit.routes.common.cookies import get_bool_setting_value_from_cookie
+from eddrit.routes.common.cookies import (
+    get_bool_setting_value_from_cookie,
+    get_enum_setting_value_from_cookie,
+)
 
 EnumTypeVar = TypeVar("EnumTypeVar", bound=Enum)
-
-
-def _get_setting_with_default_fallback[EnumTypeVar: Enum](
-    cookies_source: dict[str, str],
-    setting_name: str,
-    enum_cls: type[EnumTypeVar],
-    default_value: EnumTypeVar,
-) -> EnumTypeVar:
-    """
-    Get setting value for the given setting from the cookies_source for the given enum class with
-    a fallback to the default value provided.
-    """
-    try:
-        setting_value = enum_cls(cookies_source.get(setting_name, default_value.value))
-    except ValueError:
-        setting_value = default_value
-    return setting_value
 
 
 def get_templates_common_context(
@@ -42,19 +28,19 @@ def get_templates_common_context(
     cookies_source = cookies if cookies else request.cookies
 
     # Get settings
-    layout = _get_setting_with_default_fallback(
+    layout = get_enum_setting_value_from_cookie(
         cookies_source, "layout", LayoutMode, LayoutMode.WIDE
     )
-    thumbnails = _get_setting_with_default_fallback(
+    thumbnails = get_enum_setting_value_from_cookie(
         cookies_source,
         "thumbnails",
         ThumbnailsMode,
         ThumbnailsMode.SUBREDDIT_PREFERENCE,
     )
-    theme = _get_setting_with_default_fallback(
+    theme = get_enum_setting_value_from_cookie(
         cookies_source, "theme", Theme, Theme.SYSTEM
     )
-    line_height = _get_setting_with_default_fallback(
+    line_height = get_enum_setting_value_from_cookie(
         cookies_source, "line_height", LineHeightMode, LineHeightMode.COMPACT
     )
 
