@@ -16,6 +16,13 @@ checked
 {% endif %}
 {% endmacro %}
 
+{% macro setting_line_height_checked(line_height_mode) %}
+{% if settings.line_height.value == line_height_mode %}
+checked
+{% endif %}
+{% endmacro %}
+
+
 {% macro setting_theme_selected(theme) %}
 {% if settings.theme.value == theme %}
 selected
@@ -61,6 +68,25 @@ selected
                 <input type="radio" id="compact" name="layout" value="compact" {{
                     setting_layout_checked("compact") }}>
                 Compact (narrow and centered)
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Text line height</legend>
+            <label for="compact">
+                <input type="radio" id="compact" name="line_height" value="compact" {{
+                    setting_line_height_checked("compact") }}>
+                Compact
+            </label>
+            <label for="normal">
+                <input type="radio" id="normal" name="line_height" value="normal" {{
+                    setting_line_height_checked("normal") }}>
+                Normal
+            </label>
+            <label for="large">
+                <input type="radio" id="large" name="line_height" value="large" {{
+                    setting_line_height_checked("large") }}>
+                Large
             </label>
         </fieldset>
 

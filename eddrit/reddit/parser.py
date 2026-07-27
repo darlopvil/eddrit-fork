@@ -201,8 +201,8 @@ def parse_subreddit_information(
         title = f"Posts from {', '.join(splitted_name)}"
         show_thumbnails = True
         public_description = "<p>Multi subreddits with :</p><ul>"
-        for name in splitted_name:
-            public_description += f'<li><a href="/r/{name}">r/{name}</a></li>'
+        for name_part in splitted_name:
+            public_description += f'<li><a href="/r/{name_part}">r/{name_part}</a></li>'
         public_description += "</ul>"
         icon_url = None
     elif api_response:

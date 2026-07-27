@@ -19,6 +19,12 @@ class Theme(Enum):
     DARK = "dark"
 
 
+class LineHeightMode(Enum):
+    COMPACT = "compact"
+    NORMAL = "normal"
+    LARGE = "large"
+
+
 @dataclass
 class Settings:
     layout: LayoutMode
@@ -26,3 +32,4 @@ class Settings:
     nsfw_popular_all: bool
     nsfw_thumbnails: bool
     theme: Theme
+    line_height: LineHeightMode

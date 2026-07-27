@@ -41,8 +41,12 @@ target-version = "py313"
 # flake8-comprehensions (C4), flake8-datetimez (DTZ), isort (I), pep8-naming (N)
 # pyupgrade (UP), flake8-async (ASYNC), flake8-bandit (S), perflint (PERF),
 # tryceratops (SIM)
-select = ["E", "F", "T20", "RUF", "C4", "DTZ", "I", "N", "UP", "ASYNC", "S", "PERF", "SIM"]
-ignore = ["E501"]
+extend-select = ["E", "F", "T20", "RUF", "C4", "DTZ", "I", "N", "UP", "ASYNC", "S", "PERF", "SIM"]
+ignore = [
+    "BLE001", # blind-except
+    "E501", # line-too-long
+
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
