@@ -44,12 +44,24 @@
     {% if canonical_url is defined %}
     <link rel="canonical" href="{{ canonical_url }}" />
     {% endif %}
+
     <link rel="stylesheet" href="{{ url_for('static_with_key', key=global.app_version, path='css/main.css') }}">
     <link rel="stylesheet"
         href="{{ url_for('static_with_key', key=global.app_version, path='vendors/videojs/video-js-min.css') }}">
     <noscript>
         <link rel="stylesheet" href="{{ url_for('static_with_key', key=global.app_version, path='css/nojs.css') }}">
     </noscript>
+
+    {# Set line-height here to inject template variable #}
+    <style>
+        :root {
+            {% if settings.line_height.value == 'compact' %}
+            --pico-line-height: 1.15;
+            {% elif settings.line_height.value == 'large' %}
+            --pico-line-height: 1.75;
+            {% endif %}
+        }
+    </style>
     {% endblock %}
 </head>
 

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from starlette.requests import Request
 
 from eddrit import models
-from eddrit.models.settings import LayoutMode, Theme, ThumbnailsMode
+from eddrit.models.settings import LayoutMode, LineHeightMode, Theme, ThumbnailsMode
 from eddrit.routes.common.cookies import get_bool_setting_value_from_cookie
 
 EnumTypeVar = TypeVar("EnumTypeVar", bound=Enum)
@@ -54,6 +54,9 @@ def get_templates_common_context(
     theme = _get_setting_with_default_fallback(
         cookies_source, "theme", Theme, Theme.SYSTEM
     )
+    line_height = _get_setting_with_default_fallback(
+        cookies_source, "line_height", LineHeightMode, LineHeightMode.COMPACT
+    )
 
     settings = models.Settings(
         layout=layout,
@@ -65,6 +68,7 @@ def get_templates_common_context(
             "nsfw_thumbnails", cookies_source
         ),
         theme=theme,
+        line_height=line_height,
     )
 
     return {
