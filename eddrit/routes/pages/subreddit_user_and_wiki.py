@@ -282,4 +282,16 @@ routes = [
         "/{name:str}/comments/{post_id:str}/{post_title:str}/",
         endpoint=subreddit_or_user_post,
     ),
+    # Post - comment permalink: Reddit anade el id del comentario como 5o
+    # segmento. eddrit no tiene vista de comentario individual, asi que
+    # renderizamos el hilo completo en vez de dar 404. El handler de post
+    # ignora post_title/comment_id.
+    Route(
+        "/{name:str}/comments/{post_id:str}/{post_title:str}/{comment_id:str}",
+        endpoint=subreddit_or_user_post,
+    ),
+    Route(
+        "/{name:str}/comments/{post_id:str}/{post_title:str}/{comment_id:str}/",
+        endpoint=subreddit_or_user_post,
+    ),
 ]
