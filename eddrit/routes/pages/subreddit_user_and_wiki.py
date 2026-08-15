@@ -22,6 +22,13 @@ from eddrit.routes.common.context import (
 from eddrit.routes.common.request import get_instance_scheme_and_netloc
 from eddrit.templates import templates
 
+import httpx
+
+from eddrit import config
+from eddrit.constants import REDDIT_BASE_API_URL
+from eddrit.utils.httpx import get_httpx_async_transport
+from eddrit.utils.oauth import _get_login_headers_from_cache
+
 
 def _redirect_to_age_check(request: Request) -> RedirectResponse:
     return RedirectResponse(url=f"/over18?dest={request.url!s}")
@@ -251,6 +258,37 @@ async def subreddit_or_user_rss(request: Request) -> Response:
     return Response(content=rss_feed, media_type="application/atom+xml")
 
 
+async def share_link(request: Request) -> Response:
+    """
+    Resolve a Reddit share link (/r/<sub>/s/<id>) to its canonical permalink.
+
+    The web endpoint is WAF-blocked (403), but the app API resolves the share id
+    via a 301 whose Location is the canonical URL when authenticated with the app
+    bearer token. We use an ephemeral client (own transport + proxy, no shared
+    event hooks) so the shared client's JSON-parsing response hook does not choke
+    on the 301 HTML body. Cached login headers are reused: no extra token mint.
+    """
+    name = request.path_params["name"]
+    share_id = request.path_params["share_id"]
+    url = f"{REDDIT_BASE_API_URL}/r/{name}/s/{share_id}"
+
+    async with httpx.AsyncClient(
+        http2=True,
+        transport=get_httpx_async_transport(),
+        proxy=config.PROXY,
+        follow_redirects=False,
+        timeout=20,
+    ) as client:
+        res = await client.get(url, headers=_get_login_headers_from_cache())
+
+    location = res.headers.get("location")
+    if res.status_code not in (301, 302, 307, 308) or not location:
+        raise HTTPException(status_code=404)
+
+    # Keep only the path (drops the reddit host and share/utm tracking query).
+    return RedirectResponse(url=httpx.URL(location).path)
+
+
 routes = [
     # Wiki (register with trailing slash too: the permalinks given by reddit for these URLs have a trailing slash
     # so we want to avoid an extra redirect)
@@ -294,4 +332,7 @@ routes = [
         "/{name:str}/comments/{post_id:str}/{post_title:str}/{comment_id:str}/",
         endpoint=subreddit_or_user_post,
     ),
+    # Share link resolver: /r/<sub>/s/<id> -> canonical permalink via the app API.
+    Route("/{name:str}/s/{share_id:str}", endpoint=share_link),
+    Route("/{name:str}/s/{share_id:str}/", endpoint=share_link),
 ]
