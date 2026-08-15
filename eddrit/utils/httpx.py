@@ -17,14 +17,28 @@ from eddrit.exceptions import (
 IMPERSONATE = "chrome131_android"
 
 
-def get_httpx_transport() -> httpx.BaseTransport:
-    """Get an HTTPX transport with fingerprint impersonation."""
-    return CurlTransport(impersonate=IMPERSONATE, default_headers=True)
+def get_httpx_transport(proxy: str | None = None) -> httpx.BaseTransport:
+    """Get an HTTPX transport with fingerprint impersonation.
+
+    The proxy is passed to the curl_cffi transport itself (not to the
+    httpx.Client), otherwise httpx routes proxied requests through its default
+    transport and bypasses the impersonation entirely.
+    """
+    return CurlTransport(impersonate=IMPERSONATE, default_headers=True, proxy=proxy)
 
 
-def get_httpx_async_transport() -> httpx.AsyncBaseTransport:
-    """Get an HTTPX transport with fingerprint impersonation."""
-    return AsyncCurlTransport(impersonate=IMPERSONATE, default_headers=True)
+def get_httpx_async_transport(
+    proxy: str | None = None,
+) -> httpx.AsyncBaseTransport:
+    """Get an HTTPX async transport with fingerprint impersonation.
+
+    The proxy is passed to the curl_cffi transport itself (not to the
+    httpx.AsyncClient), otherwise httpx routes proxied requests through its
+    default transport and bypasses the impersonation entirely.
+    """
+    return AsyncCurlTransport(
+        impersonate=IMPERSONATE, default_headers=True, proxy=proxy
+    )
 
 
 async def raise_if_content_is_not_available(api_res: httpx.Response) -> None:

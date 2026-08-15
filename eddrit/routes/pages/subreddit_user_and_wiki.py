@@ -274,8 +274,7 @@ async def share_link(request: Request) -> Response:
 
     async with httpx.AsyncClient(
         http2=True,
-        transport=get_httpx_async_transport(),
-        proxy=config.PROXY,
+        transport=get_httpx_async_transport(proxy=config.PROXY),
         follow_redirects=False,
         timeout=20,
     ) as client:
