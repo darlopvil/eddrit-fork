@@ -1,3 +1,14 @@
+# Fork (darlopvil/eddrit-fork)
+
+## Unreleased (fork)
+- fix(routes): render comment permalinks instead of returning 404 (upstream #350)
+- feat(routes): resolve `/s/` share links via the app API + bearer token (upstream #351)
+- fix(proxy): pass the proxy to the curl_cffi transport so impersonation is kept over the proxy
+
+---
+
+# Upstream changelog
+
 # Version 0.20.0 (not released yet)
 
 - Add setting to tweak line height
