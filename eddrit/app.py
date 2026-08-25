@@ -13,6 +13,7 @@ from starlette.staticfiles import StaticFiles
 from eddrit import config
 from eddrit.routes.common import exception_handlers
 from eddrit.routes.pages import (
+    media,
     index,
     meta,
     over18,
@@ -102,6 +103,7 @@ app = Starlette(
         Mount(
             "/",
             routes=[
+                *media.routes,
                 *search.routes,
                 *root_files.routes,
                 *over18.routes,

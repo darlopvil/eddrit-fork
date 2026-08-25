@@ -8,3 +8,4 @@ LOG_LEVEL: str = env.str("LOG_LEVEL", default="WARNING")
 
 VALKEY_URL: str = env.str("VALKEY_URL")
 PROXY: str | None = env.str("PROXY", default=None)
+PROXY_MEDIA: bool = env.bool("PROXY_MEDIA", default=False)
