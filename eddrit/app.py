@@ -13,8 +13,8 @@ from starlette.staticfiles import StaticFiles
 from eddrit import config
 from eddrit.routes.common import exception_handlers
 from eddrit.routes.pages import (
-    media,
     index,
+    media,
     meta,
     over18,
     root_files,
