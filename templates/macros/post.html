@@ -21,7 +21,7 @@ content_expanded) %}
             <img src="{{ post.thumbnail_url | replace("$STATIC_RES_PATH", url_for('static_with_key', key=global.app_version, path='' )) }}"
                 class="post-image-thumbnail post-image-thumbnail-default dark-inverted" height="60" width="60">
             {% else %}
-            <img src="{{ post.thumbnail_url }}" class="post-image-thumbnail" height="60" width="60">
+            <img src="{{ post.thumbnail_url | media }}" class="post-image-thumbnail" height="60" width="60">
             {% endif %}
         </span>
         {% endif %}
@@ -109,7 +109,7 @@ content_expanded) %}
     {# Put src in data-src (here and below) if not expanded and setting it up later in JS to avoid Firefox loading all the ressources in templates #}
     <a href="{{ post.url }}">
         <img loading="lazy" height="{{ post.content.picture.height }}" width="{{ post.content.picture.width }}"
-            class="post-content-image-or-video" data-src="{{ post.content.picture.url }}" {{ "src=" ~ post.content.picture.url if expanded else ""}}  />
+            class="post-content-image-or-video" data-src="{{ post.content.picture.url | media }}" {{ "src=" ~ (post.content.picture.url | media) if expanded else ""}}  />
     </a>
     {% endif %}
     {% if post.content.type.value == 'gallery' %}
@@ -143,7 +143,7 @@ content_expanded) %}
                         {% endif %}
                         <a href="{{ item.url }}">
                             <img class="post-content-image-or-video"
-                                height="{{ item.height }}" width="{{ item.width }}" data-src="{{ item.url }}" {{ "src=" ~ item.url if expanded else ""}}  />
+                                height="{{ item.height }}" width="{{ item.width }}" data-src="{{ item.url | media }}" {{ "src=" ~ (item.url | media) if expanded else ""}}  />
                         </a>
                     </figure>
                 {% endif %}
