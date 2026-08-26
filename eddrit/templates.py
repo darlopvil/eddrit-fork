@@ -23,11 +23,31 @@ templates.env.globals["global"] = {
 
 
 # Add a json filter compatible with dataclasses
+def _proxy_video_urls(item: Any) -> Any:
+    """Rewrite MP4 video URLs to go through our media proxy.
+
+    Videos are rendered by JS from a JSON blob, not by Jinja, so the `media`
+    filter cannot reach them. Only MP4 sources are rewritten: DASH manifests
+    (v.redd.it) are left untouched and keep going straight to Reddit, so their
+    playback is unaffected.
+    """
+    if not isinstance(item, dict):
+        return item
+    if str(item.get("video_format", "")) != str(models.PostVideoFormat.MP4):
+        return item
+    for key in ("url", "poster_url"):
+        if value := item.get(key):
+            item[key] = media_url(value)
+    return item
+
+
 def to_json_dataclass(value: Any) -> str:
     if type(value) is list:
         converted = [asdict(item) if is_dataclass(item) else item for item in value]  # type: ignore
+        converted = [_proxy_video_urls(item) for item in converted]
     else:
         converted = asdict(value) if is_dataclass(value) else value  # type: ignore
+        converted = _proxy_video_urls(converted)
     return json.dumps(converted, default=str)
 
 

@@ -3,7 +3,13 @@
 ## Unreleased (fork)
 - fix(routes): render comment permalinks instead of returning 404 (upstream #350)
 - feat(routes): resolve `/s/` share links via the app API + bearer token (upstream #351)
-- fix(proxy): pass the proxy to the curl_cffi transport so impersonation is kept over the proxy
+- fix(proxy): pass the proxy to the curl_cffi transport so impersonation is kept
+- fix(robustness): raise HTTP client timeout to 20s (10s connect)
+- feat(media): proxy Reddit images through a `/media` route (host whitelist, VPN egress)
+- feat(media): proxy MP4 video with `Range` support
+- perf(media): shared HTTP client with connection pooling
+- feat(media): on-disk cache with size/age limits
+- chore: alphabetical imports, writable tldextract cache
 
 ---
 
