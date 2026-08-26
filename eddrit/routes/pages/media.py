@@ -15,6 +15,7 @@ from eddrit.utils.httpx import get_httpx_async_transport
 ALLOWED_HOSTS = frozenset(
     {
         "i.redd.it",
+        "v.redd.it",
         "preview.redd.it",
         "external-preview.redd.it",
         "a.thumbs.redditmedia.com",
@@ -25,9 +26,8 @@ ALLOWED_HOSTS = frozenset(
     }
 )
 
-# Images and plain MP4 video. DASH (v.redd.it manifests + CMAF segments) is not
-# proxied yet: those URLs are left untouched and still go straight to Reddit.
-ALLOWED_CONTENT_TYPE_PREFIXES = ("image/", "video/")
+# Images, plain MP4 video, and DASH manifests (served via the /media/dash route).
+ALLOWED_CONTENT_TYPE_PREFIXES = ("image/", "video/", "application/dash+xml")
 
 BROWSER_CACHE_SECONDS = 86400
 
@@ -39,6 +39,11 @@ MEDIA_HEADERS = {
         "Gecko/20100101 Firefox/128.0"
     ),
     "Accept": "image/avif,image/webp,video/webm,video/mp4,*/*;q=0.8",
+    # aiter_raw() streams the bytes exactly as the CDN sent them, so asking for
+    # an uncompressed body avoids having to forward (and keep consistent) the
+    # Content-Encoding and Content-Length headers. Text like DASH manifests is
+    # gzipped by default; media is not.
+    "Accept-Encoding": "identity",
 }
 
 
@@ -80,6 +85,14 @@ async def media_proxy(request: Request) -> Response:
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         raise HTTPException(status_code=403, detail="Host not allowed")
+
+    return await _proxy_url(request, url)
+
+
+async def _proxy_url(request: Request, url: str) -> Response:
+    """Fetch `url` upstream and stream it back, with cache and Range support."""
+    if not config.PROXY_MEDIA:
+        raise HTTPException(status_code=404)
 
     range_header = request.headers.get("range")
 
@@ -150,6 +163,28 @@ async def media_proxy(request: Request) -> Response:
     )
 
 
+async def dash_proxy(request: Request) -> Response:
+    """
+    Proxy for v.redd.it DASH videos.
+
+    The manifest uses *relative* BaseURLs (e.g. `CMAF_360.mp4`), so by serving it
+    under a path that mirrors Reddit's directory layout the player resolves the
+    segments against this same route: no XML rewriting needed. Segments don't
+    need the manifest's `?a=` signature (verified), so nothing else to carry over.
+    """
+    video_id = request.path_params["video_id"]
+    filename = request.path_params["filename"]
+    url = f"https://v.redd.it/{video_id}/{filename}"
+    if request.url.query:
+        url = f"{url}?{request.url.query}"
+    return await _proxy_url(request, url)
+
+
 routes = [
     Route("/media", endpoint=media_proxy, methods=["GET"]),
+    Route(
+        "/media/dash/{video_id:str}/{filename:str}",
+        endpoint=dash_proxy,
+        methods=["GET"],
+    ),
 ]

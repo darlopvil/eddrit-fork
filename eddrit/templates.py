@@ -33,7 +33,20 @@ def _proxy_video_urls(item: Any) -> Any:
     """
     if not isinstance(item, dict):
         return item
-    if str(item.get("video_format", "")) != str(models.PostVideoFormat.MP4):
+    video_format = str(item.get("video_format", ""))
+
+    if video_format == str(models.PostVideoFormat.DASH):
+        # DASH manifests are served under a path mirroring Reddit's layout, so
+        # the relative BaseURLs inside the manifest resolve to our proxy too.
+        url = item.get("url") or ""
+        if config.PROXY_MEDIA and (parsed := urlparse(url)).hostname == "v.redd.it":
+            query = f"?{parsed.query}" if parsed.query else ""
+            item["url"] = f"/media/dash{parsed.path}{query}"
+        if poster := item.get("poster_url"):
+            item["poster_url"] = media_url(poster)
+        return item
+
+    if video_format != str(models.PostVideoFormat.MP4):
         return item
     for key in ("url", "poster_url"):
         if value := item.get(key):
