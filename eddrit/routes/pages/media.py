@@ -7,6 +7,7 @@ from starlette.responses import Response, StreamingResponse
 from starlette.routing import Route
 
 from eddrit import config
+from eddrit.utils import media_cache
 from eddrit.utils.httpx import get_httpx_async_transport
 
 # Only these hosts can be proxied. Without this whitelist the instance would be
@@ -80,12 +81,30 @@ async def media_proxy(request: Request) -> Response:
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         raise HTTPException(status_code=403, detail="Host not allowed")
 
+    range_header = request.headers.get("range")
+
+    # Range requests (video seeking) bypass the cache entirely: storing partial
+    # fragments would be error-prone and could corrupt playback.
+    if not range_header:
+        await media_cache.cleanup_if_needed()
+        if cached := media_cache.get(url):
+            payload, cached_type = cached
+            return Response(
+                content=payload,
+                media_type=cached_type,
+                headers={
+                    "Cache-Control": f"public, max-age={BROWSER_CACHE_SECONDS}",
+                    "Accept-Ranges": "bytes",
+                    "X-Media-Cache": "HIT",
+                },
+            )
+
     client = _get_client()
 
     try:
         headers = dict(MEDIA_HEADERS)
         # Forward the browser's Range header so seeking works on videos
-        if range_header := request.headers.get("range"):
+        if range_header:
             headers["Range"] = range_header
         req = client.build_request("GET", url, headers=headers)
         upstream = await client.send(req, stream=True)
@@ -99,16 +118,24 @@ async def media_proxy(request: Request) -> Response:
         await upstream.aclose()
         raise HTTPException(status_code=502, detail="Invalid media response")
 
+    should_cache = not range_header and upstream.status_code == 200
+
     async def stream_and_close():
+        chunks = [] if should_cache else None
         try:
             async for chunk in upstream.aiter_raw():
+                if chunks is not None:
+                    chunks.append(chunk)
                 yield chunk
         finally:
             await upstream.aclose()
+        if chunks is not None:
+            media_cache.put(url, b"".join(chunks), content_type)
 
     response_headers = {
         "Cache-Control": f"public, max-age={BROWSER_CACHE_SECONDS}",
         "Accept-Ranges": "bytes",
+        "X-Media-Cache": "MISS",
     }
     if content_length := upstream.headers.get("content-length"):
         response_headers["Content-Length"] = content_length
