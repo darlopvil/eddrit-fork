@@ -23,23 +23,13 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
 
 ### Added / fixed here
 
-- **Comment permalinks now render instead of 404.** Reddit appends the comment id as a
-  5th path segment; upstream had no route for it. ([#350](https://github.com/corenting/eddrit/issues/350))
-- **Share links (`/r/<sub>/s/<id>`) are resolved.** The web endpoint is WAF-blocked, so
-  they're resolved via the app API (301 → canonical permalink). ([#351](https://github.com/corenting/eddrit/issues/351))
-- **Fixed the proxy bypassing the curl_cffi impersonation.** Passing `proxy` to the client
-  dropped the TLS fingerprint (JA4 `t13d1516h2` → `t13d1713h1`, HTTP/2 → 1.1); it is now
-  passed to the transport itself.
-- **Media proxy (`/media`).** Images and MP4 video are fetched server-side and streamed to
-  the browser, so the client never talks to Reddit's CDNs. Host whitelist, `Range` support
-  for video seeking, connection pooling and an on-disk cache. Behind `PROXY_MEDIA`.
-- **Robustness.** HTTP timeout raised to 20s/10s connect so a VPN reconnect doesn't take
-  the instance down.
-
-### Not covered yet
-
-- **DASH video (`v.redd.it`)** is not proxied: those manifests and their CMAF segments still
-  go straight to Reddit. Playback is unaffected.
+- **Comment permalinks now render instead of 404.** ([#350](https://github.com/corenting/eddrit/issues/350))
+- **Share links (`/r/<sub>/s/<id>`) are resolved** via the app API. ([#351](https://github.com/corenting/eddrit/issues/351))
+- **Fixed the proxy bypassing the curl_cffi impersonation** (JA4 was falling back to plain httpx).
+- **Media proxy (`/media`).** Images, MP4 and DASH video are fetched server-side and streamed
+  to the browser, so the client never talks to Reddit's CDNs. Host whitelist, `Range` support,
+  connection pooling and an on-disk cache. Behind `PROXY_MEDIA`.
+- **Robustness.** HTTP timeout raised so a VPN reconnect doesn't take the instance down.
 
 ### Notes
 

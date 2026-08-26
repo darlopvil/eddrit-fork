@@ -7,6 +7,7 @@
 - fix(robustness): raise HTTP client timeout to 20s (10s connect)
 - feat(media): proxy Reddit images through a `/media` route (host whitelist, VPN egress)
 - feat(media): proxy MP4 video with `Range` support
+- feat(media): proxy DASH video (`v.redd.it`) with no manifest rewriting
 - perf(media): shared HTTP client with connection pooling
 - feat(media): on-disk cache with size/age limits
 - chore: alphabetical imports, writable tldextract cache
