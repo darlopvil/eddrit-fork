@@ -7,6 +7,7 @@ from typing import Any
 import timeago
 
 from eddrit import models
+from eddrit.templates import media_url
 from eddrit.reddit.content_parser.flair import get_post_flair, get_user_flair
 from eddrit.reddit.content_parser.media import (
     get_post_gallery_content,
@@ -34,6 +35,25 @@ MEDIA_DOMAINS_TO_DISPLAY_AS_LINK = [
 WIKI_LINKS_REGEX = re.compile(r'href="https:\/\/old\.reddit\.com\/r\/(.*)\/wiki\/(.*)"')
 
 
+# Links to Reddit-hosted images inside text bodies. Only these hosts and only
+# actual image URLs: any other link must stay a link.
+INLINE_IMAGE_LINKS_REGEX = re.compile(
+    r'<a href="(https://(?:preview|i)\.redd\.it/[^"]+?'
+    r'(?:\.(?:png|jpe?g|gif|webp)|format=(?:png|pjpg|jpg|webp))[^"]*)"[^>]*>'
+    r'[^<]*</a>'
+)
+
+
+def _inline_image_replacement(match: "re.Match[str]") -> str:
+    url = html.unescape(match.group(1))
+    src = media_url(url)
+    return (
+        f'<a href="{src}" target="_blank">'
+        f'<img class="inline-text-image" loading="lazy" src="{src}" />'
+        f"</a>"
+    )
+
+
 def clean_content(initial_content: str) -> str:
     """
     Clean text content:
@@ -48,6 +68,11 @@ def clean_content(initial_content: str) -> str:
 
     # Replace all match of regex in content
     content = WIKI_LINKS_REGEX.sub(r'href="/r/\1/wiki/\2"', content)
+
+    # Reddit renders image links inside post/comment text as inline images;
+    # eddrit left them as plain links. Convert them to <img> (through our media
+    # proxy when enabled) so they render like on reddit.com.
+    content = INLINE_IMAGE_LINKS_REGEX.sub(_inline_image_replacement, content)
 
     return content
 

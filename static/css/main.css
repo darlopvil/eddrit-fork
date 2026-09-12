@@ -408,3 +408,21 @@ details.dropdown > summary + ul.nav-subreddit-dropdown {
 	flex-direction: column;
 	align-items: center;
 }
+
+/* Imagenes enlazadas dentro del texto de posts y comentarios: Reddit las
+   renderiza inline, eddrit las dejaba como enlace. Se limitan a la misma
+   altura que el contenido de post; en comentarios, algo menos para que un
+   hilo con varias siga siendo legible. */
+.inline-text-image {
+	display: block;
+	max-width: min(var(--post-content), 100%);
+	max-height: var(--post-content);
+	width: auto;
+	height: auto;
+	margin: 0.5rem 0;
+	border-radius: 4px;
+}
+
+.comment .inline-text-image {
+	max-height: calc(var(--post-content) * 0.6);
+}
