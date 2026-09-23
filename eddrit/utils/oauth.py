@@ -174,8 +174,14 @@ def oauth_login() -> None:
                 - 300,  # expires time minus 5 min for renewal margin
             )
         else:
+            # Do NOT call res.json() here: when the exit IP is blocked, Reddit
+            # answers with an HTML block page, so parsing it raises
+            # JSONDecodeError *while building the log message*. That swallowed
+            # both the log line and the RuntimeError below, leaving only a
+            # confusing JSONDecodeError traceback with no clue about the cause.
             logger.info(
-                f"Got {res.status_code} response for official Android app login: {res.json()}"
+                f"Got {res.status_code} response for official Android app login: "
+                f"{res.text[:200]}"
             )
             raise RuntimeError(
                 "Cannot generate credentials for Reddit by spoofing the official Android app"
