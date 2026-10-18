@@ -1,0 +1,159 @@
+{#
+  Compact view of a post, meant to be loaded in an <iframe> by other sites.
+  Standalone on purpose (does not extend base.html): no header, navigation,
+  comments or Video.js. Every link opens in a new tab (<base target>) so the
+  iframe never navigates away, and all media goes through our /media proxy.
+#}
+{% macro render_flair(flair) %}
+{% if flair %}
+<span class="embed-flair" style="color: {{ flair.text_color }}; background-color: {{ flair.background_color }};">
+    {%- for item in flair.components -%}
+    {%- if item.type.value == 'text' -%}
+    <span>{{ item.content | safe }}</span>
+    {%- elif item.type.value == 'emoji' -%}
+    <img class="embed-flair-icon" src="{{ item.content | media }}" alt="">
+    {%- endif -%}
+    {%- endfor -%}
+</span>
+{% endif %}
+{% endmacro %}
+
+{% macro render_video(video) %}
+{% if video %}
+<video class="embed-media" controls playsinline preload="none"
+    width="{{ video.width }}" height="{{ video.height }}"
+    {% if video.poster_url %}poster="{{ video.poster_url }}"{% endif %}
+    {% if video.is_gif %}autoplay loop muted{% endif %}
+    {% if video.is_dash %}data-dash="{{ video.src }}"{% else %}src="{{ video.src }}"{% endif %}></video>
+{% if video.is_dash %}
+<noscript>
+    <p class="embed-note">This video needs JavaScript to play. <a href="{{ post.comments_url_path }}">Watch it on eddrit</a>.</p>
+</noscript>
+{% endif %}
+{% endif %}
+{% endmacro %}
+
+{% macro render_content(post) %}
+{% set content = post.content %}
+<div class="embed-content">
+    {% if content.text %}
+    <div class="embed-text">{{ content.text | safe }}</div>
+    {% endif %}
+
+    {% if content.type.value == 'picture' %}
+    <a href="{{ content.picture.url | media }}">
+        <img class="embed-media" loading="lazy" alt=""
+            width="{{ content.picture.width }}" height="{{ content.picture.height }}"
+            src="{{ content.picture.url | media }}">
+    </a>
+
+    {% elif content.type.value == 'gallery' %}
+    {# No JS: all the items are stacked, each with its caption #}
+    <div class="embed-gallery">
+        {% for item in content.contents %}
+        <figure>
+            {% if item.is_gif is defined %}
+            {{ render_video([item] | embed_video) }}
+            {% else %}
+            <a href="{{ item.url | media }}">
+                <img class="embed-media" loading="lazy" alt=""
+                    width="{{ item.width }}" height="{{ item.height }}" src="{{ item.url | media }}">
+            </a>
+            {% endif %}
+            {% if content.captions[loop.index0] %}
+            <figcaption>{{ content.captions[loop.index0] | safe }}</figcaption>
+            {% endif %}
+        </figure>
+        {% endfor %}
+    </div>
+
+    {% elif content.type.value == 'video' %}
+    {{ render_video(content.videos | embed_video) }}
+
+    {% elif content.type.value == 'embed' %}
+    {# Third-party player (YouTube, Twitch...): not loaded here, only linked #}
+    <a class="embed-link-card" href="{{ post.url }}">
+        {% if content.poster_url %}
+        <img class="embed-media" loading="lazy" alt="" src="{{ content.poster_url | media }}">
+        {% endif %}
+        <span>Watch on {{ post.domain }}</span>
+    </a>
+
+    {% elif content.type.value == 'link' %}
+    <a class="embed-link-card" href="{{ post.url }}">
+        {% if not post.thumbnail_is_icon and post.thumbnail_url.startswith('https://') %}
+        <img class="embed-link-thumbnail" loading="lazy" alt="" src="{{ post.thumbnail_url | media }}">
+        {% endif %}
+        <span>{{ post.domain }}</span>
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!DOCTYPE html>
+<html lang="en" {% if theme %}data-theme="{{ theme }}"{% endif %}>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{{ post.title if post else "Post unavailable" }} | eddrit</title>
+    <base target="_blank">
+    <link rel="stylesheet" href="{{ url_for('static_with_key', key=global.app_version, path='css/embed.css') }}">
+</head>
+
+<body>
+    {% if not post %}
+    <p class="embed-error">{{ detail or "This post is not available" }}.</p>
+    {% else %}
+    <article class="embed">
+        <header>
+            <div class="embed-meta">
+                <a href="{{ url_for('subreddit', path=post.subreddit) }}">r/{{ post.subreddit }}</a>
+                ·
+                {% if post.author.is_deleted %}
+                {{ post.author.name }}
+                {% else %}
+                <a href="{{ url_for('user', path=post.author.name) }}">u/{{ post.author.name }}</a>
+                {% endif %}
+                · {{ post.human_date }}
+            </div>
+            <h1 class="embed-title"><a href="{{ post.comments_url_path }}">{{ post.title }}</a></h1>
+            {% if post.over18 or post.spoiler or post.flair %}
+            <div class="embed-flairs">
+                {% if post.over18 %}<span class="embed-flair embed-flair-warning">NSFW</span>{% endif %}
+                {% if post.spoiler %}<span class="embed-flair embed-flair-warning">Spoiler</span>{% endif %}
+                {{ render_flair(post.flair) }}
+            </div>
+            {% endif %}
+        </header>
+
+        {% if hide_content %}
+        {# Hidden behind a click instead of redirecting to /over18 #}
+        <details class="embed-hidden">
+            <summary>
+                {% if preview_url %}
+                <img class="embed-blurred" alt="" src="{{ preview_url | media }}">
+                {% endif %}
+                <span>{{ "NSFW" if post.over18 else "Spoiler" }} content, click to show</span>
+            </summary>
+            {{ render_content(post) }}
+        </details>
+        {% else %}
+        {{ render_content(post) }}
+        {% endif %}
+
+        <footer class="embed-footer">
+            <span>{{ post.human_score }} points · {{ post.comments_count }} comments</span>
+            <a href="{{ post.comments_url_path }}">View on eddrit</a>
+        </footer>
+    </article>
+    {% endif %}
+
+    {% if needs_dash %}
+    <script src="{{ url_for('static_with_key', key=global.app_version, path='vendors/dashjs/dash.all.min.js') }}"></script>
+    <script src="{{ url_for('static_with_key', key=global.app_version, path='js/embed.js') }}"></script>
+    {% endif %}
+</body>
+
+</html>

@@ -38,10 +38,7 @@ def _proxy_video_urls(item: Any) -> Any:
     if video_format == str(models.PostVideoFormat.DASH):
         # DASH manifests are served under a path mirroring Reddit's layout, so
         # the relative BaseURLs inside the manifest resolve to our proxy too.
-        url = item.get("url") or ""
-        if config.PROXY_MEDIA and (parsed := urlparse(url)).hostname == "v.redd.it":
-            query = f"?{parsed.query}" if parsed.query else ""
-            item["url"] = f"/media/dash{parsed.path}{query}"
+        item["url"] = dash_media_url(item.get("url") or "")
         if poster := item.get("poster_url"):
             item["poster_url"] = media_url(poster)
         return item
@@ -81,3 +78,41 @@ def media_url(value: Any) -> Any:
 
 
 templates.env.filters["media"] = media_url
+
+
+def dash_media_url(value: str) -> str:
+    """Rewrite a v.redd.it DASH manifest URL to our /media/dash proxy.
+
+    The proxied path mirrors Reddit's layout, so the relative BaseURLs inside
+    the manifest resolve to our proxy too. No-op when PROXY_MEDIA is disabled
+    or for any other host.
+    """
+    if config.PROXY_MEDIA and (parsed := urlparse(value)).hostname == "v.redd.it":
+        query = f"?{parsed.query}" if parsed.query else ""
+        return f"/media/dash{parsed.path}{query}"
+    return value
+
+
+# Pick the video to show in the embed view, which uses a bare <video> element
+# instead of Video.js. MP4 is preferred because it plays without JavaScript;
+# DASH (most v.redd.it videos) needs the small dash.js loader of the embed.
+def embed_video(videos: Any) -> dict[str, Any] | None:
+    videos = list(videos or [])
+    if not videos:
+        return None
+    video = next(
+        (v for v in videos if v.video_format == models.PostVideoFormat.MP4),
+        videos[0],
+    )
+    is_dash = video.video_format == models.PostVideoFormat.DASH
+    return {
+        "src": dash_media_url(video.url) if is_dash else media_url(video.url),
+        "is_dash": is_dash,
+        "is_gif": video.is_gif,
+        "width": video.width,
+        "height": video.height,
+        "poster_url": media_url(video.poster_url),
+    }
+
+
+templates.env.filters["embed_video"] = embed_video

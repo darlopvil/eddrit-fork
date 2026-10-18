@@ -1,3 +1,4 @@
+from loguru import logger
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
@@ -19,6 +20,7 @@ from eddrit.routes.common.context import (
     get_posts_pages_common_context,
     get_templates_common_context,
 )
+from eddrit.routes.common.exception_handlers import get_error_status_and_detail
 from eddrit.routes.common.request import get_instance_scheme_and_netloc
 from eddrit.templates import templates
 
@@ -96,6 +98,94 @@ async def subreddit_or_user_post_rss(request: Request) -> Response:
         is_user,
     )
     return Response(content=rss_feed, media_type="application/atom+xml")
+
+
+def _get_embed_preview_url(post: models.Post) -> str | None:
+    """Picture shown blurred behind the NSFW/spoiler warning of an embed."""
+    content = post.content
+    if not post.thumbnail_is_icon and post.thumbnail_url.startswith("https://"):
+        return post.thumbnail_url
+    if isinstance(content, models.PicturePostContent):
+        return content.picture.url
+    if isinstance(content, models.EmbedPostContent):
+        return content.poster_url
+    if isinstance(content, models.VideoPostContent):
+        return next((v.poster_url for v in content.videos if v.poster_url), None)
+    if isinstance(content, models.GalleryPostContent):
+        return next(
+            (x.url for x in content.contents if isinstance(x, models.PostPicture)),
+            None,
+        )
+    return None
+
+
+def _post_has_dash_video(post: models.Post) -> bool:
+    """Whether the embed has to load dash.js to play the post's video."""
+    content = post.content
+    if isinstance(content, models.VideoPostContent):
+        videos = list(content.videos)
+    elif isinstance(content, models.GalleryPostContent):
+        videos = [x for x in content.contents if isinstance(x, models.PostVideo)]
+    else:
+        return False
+
+    if isinstance(content, models.VideoPostContent) and any(
+        v.video_format == models.PostVideoFormat.MP4 for v in videos
+    ):
+        # embed_video() prefers MP4, so DASH is not used
+        return False
+    return any(v.video_format == models.PostVideoFormat.DASH for v in videos)
+
+
+async def subreddit_or_user_post_embed(request: Request) -> Response:
+    """
+    Compact view of a post, meant to be embedded in an <iframe> by other sites.
+
+    No header, navigation or comments, and no subreddit lookup (one request to
+    Reddit instead of two). It never redirects: NSFW and spoiler content is
+    hidden behind a click, and errors are shown inline instead of the full
+    error page, so the iframe always shows something sensible.
+    """
+    is_user = request.url.path.startswith("/user")
+
+    # The embedding page usually sits on another site, so our cookies are not
+    # sent: the theme can be forced with ?theme=light|dark instead.
+    theme = request.query_params.get("theme")
+    context = {
+        **get_templates_common_context(request),
+        "theme": theme if theme in ("light", "dark") else None,
+    }
+
+    try:
+        post = await get_post(
+            request.state.http_client,
+            request.path_params["name"],
+            request.path_params["post_id"],
+            is_user,
+        )
+    except Exception as exc:
+        status_code, detail = get_error_status_and_detail(exc)
+        if status_code >= 500:
+            logger.exception(f"Cannot render embed for {request.url.path}")
+        return templates.TemplateResponse(
+            "embed.html",
+            {**context, "post": None, "detail": detail},
+            status_code=status_code,
+        )
+
+    hide_content = post.spoiler or (
+        post.over18 and request.cookies.get("over18", "0") != "1"
+    )
+    return templates.TemplateResponse(
+        "embed.html",
+        {
+            **context,
+            "post": post,
+            "hide_content": hide_content,
+            "preview_url": _get_embed_preview_url(post) if hide_content else None,
+            "needs_dash": _post_has_dash_video(post),
+        },
+    )
 
 
 async def wiki_page(request: Request) -> Response:
@@ -318,6 +408,16 @@ routes = [
     Route(
         "/{name:str}/comments/{post_id:str}/{post_title:str}/",
         endpoint=subreddit_or_user_post,
+    ),
+    # Post - embed view. Must stay before the comment permalink routes below,
+    # otherwise "embed" would be taken as a comment id.
+    Route(
+        "/{name:str}/comments/{post_id:str}/{post_title:str}/embed",
+        endpoint=subreddit_or_user_post_embed,
+    ),
+    Route(
+        "/{name:str}/comments/{post_id:str}/{post_title:str}/embed/",
+        endpoint=subreddit_or_user_post_embed,
     ),
     # Post - comment permalink: Reddit anade el id del comentario como 5o
     # segmento. eddrit no tiene vista de comentario individual, asi que

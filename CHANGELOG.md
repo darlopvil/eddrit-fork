@@ -11,6 +11,7 @@
 - perf(media): shared HTTP client with connection pooling
 - feat(media): on-disk cache with size/age limits
 - chore: alphabetical imports, writable tldextract cache
+- feat(embed): compact, frameable `/embed` view of a post for other sites' iframes
 
 ---
 

@@ -9,8 +9,12 @@ from eddrit.routes.common.context import get_templates_common_context
 from eddrit.templates import templates
 
 
-async def http_exception(request: Any, exc: Exception) -> Response:
-    """Global exception handler"""
+def get_error_status_and_detail(exc: Exception) -> tuple[int, str | None]:
+    """Map an exception to the status code and message shown to the user.
+
+    Shared by the global handler and the embed view, which renders errors
+    inline instead of showing the full error page.
+    """
     # If we get an httpx timeout, it probably mean reddit blocked us
     # or is down
     if type(exc) is httpx.ReadTimeout or type(exc) is httpcore.ReadTimeout:
@@ -25,6 +29,13 @@ async def http_exception(request: Any, exc: Exception) -> Response:
         # (for RedditContentUnavailableError and HTTPException)
         status_code = exc.status_code if hasattr(exc, "status_code") else 500  # type: ignore
         detail = exc.detail if hasattr(exc, "detail") else None  # type: ignore
+
+    return status_code, detail
+
+
+async def http_exception(request: Any, exc: Exception) -> Response:
+    """Global exception handler"""
+    status_code, detail = get_error_status_and_detail(exc)
 
     return templates.TemplateResponse(
         "error.html",
