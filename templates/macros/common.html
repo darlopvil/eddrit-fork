@@ -7,7 +7,7 @@
         {{ item.content | safe }}
     </span>
     {% elif item.type.value == 'emoji' %}
-    <img class="post-flair-icon" src="{{ item.content }}" />
+    <img class="post-flair-icon" src="{{ item.content | media }}" />
     {% endif %}
     {% endfor %}
 </span>
