@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from dataclasses import asdict
+from dataclasses import fields
 
 import httpx
 
@@ -205,8 +205,13 @@ async def get_post(
 
     post = parser.parse_post(res.json()[0]["data"]["children"][0]["data"])
 
+    # Copy the fields one level deep. asdict() would also turn the nested
+    # dataclasses (post.content, its videos and pictures) into plain dicts,
+    # which breaks every isinstance() check and attribute access on them,
+    # e.g. the embed view's video selection.
     return models.PostWithComments(
-        **asdict(post), comments=parser.parse_comments_tree(res.json()[1]["data"])
+        **{field.name: getattr(post, field.name) for field in fields(post)},
+        comments=parser.parse_comments_tree(res.json()[1]["data"]),
     )
 
 
