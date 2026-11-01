@@ -29,7 +29,9 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
 - **Media proxy (`/media`).** Images, MP4 and DASH video are fetched server-side and streamed
   to the browser, so the client never talks to Reddit's CDNs. Host whitelist, `Range` support,
   connection pooling and an on-disk cache. Behind `PROXY_MEDIA`.
-- **Robustness.** HTTP timeout raised so a VPN reconnect doesn't take the instance down.
+- **Robustness.** HTTP timeout raised so a VPN reconnect doesn't take the instance down. A post
+  page no longer fails when Reddit does not answer for its subreddit (or user): the post is
+  fetched first and the sidebar information falls back to defaults.
 - **Embed view (`/r/<sub>/comments/<id>/<slug>/embed`).** A compact post view meant to be
   loaded in an `<iframe>` by other sites: no header or comments, media through `/media`,
   NSFW and spoiler content behind a click instead of the `/over18` redirect, and errors

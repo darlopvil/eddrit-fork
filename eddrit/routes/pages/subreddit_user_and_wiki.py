@@ -47,22 +47,44 @@ def _get_rss_feed_url(request: Request) -> str:
     return str(request.url).replace(request.url.path, f"{request.url.path}.rss")
 
 
+async def _get_post_page_information(
+    request: Request, is_user: bool, post: models.PostWithComments
+) -> models.Subreddit | models.User:
+    """
+    Subreddit (or user) shown next to a post: only its title, thumbnails
+    setting and NSFW flag are used. The post is what matters, so when Reddit
+    does not answer for the subreddit (blocked exit, rate limit...) the page
+    is shown with defaults instead of failing.
+    """
+    name = request.path_params["name"]
+    try:
+        if is_user:
+            return await get_user_information(request.state.http_client, name)
+        return await get_subreddit_information(request.state.http_client, name)
+    except Exception as e:
+        logger.warning(
+            f"Showing post {post.id} without the information of {name}: {e!r}"
+        )
+    if is_user:
+        return models.User(name=name, flair=None, over18=post.over18)
+    return models.Subreddit(
+        title=post.subreddit or name,
+        name=name,
+        show_thumbnails=True,
+        public_description=None,
+        over18=post.over18,
+        icon_url=None,
+        wiki_enabled=False,
+    )
+
+
 async def subreddit_or_user_post(request: Request) -> Response:
     """
     Endpoint for a post page.
     """
     is_user = request.url.path.startswith("/user")
 
-    # Get information
-    if is_user:
-        information = await get_user_information(
-            request.state.http_client, request.path_params["name"]
-        )
-    else:
-        information = await get_subreddit_information(
-            request.state.http_client, request.path_params["name"]
-        )
-
+    # The post first: if it fails, the subreddit is not requested for nothing
     post_id = request.path_params["post_id"]
     post = await get_post(
         request.state.http_client, request.path_params["name"], post_id, is_user
@@ -70,6 +92,8 @@ async def subreddit_or_user_post(request: Request) -> Response:
 
     if _should_redirect_to_age_check(request, post.over18):
         return _redirect_to_age_check(request)
+
+    information = await _get_post_page_information(request, is_user, post)
 
     return templates.TemplateResponse(
         "post.html",
