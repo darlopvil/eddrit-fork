@@ -4,8 +4,21 @@
 
 {% block main_content %}
 <article>
-    <p>eddrit is an alternative frontend for <a href="https://old.reddit.com/">reddit</a>.</p>
-    <p><a href="https://github.com/corenting/eddrit">Project homepage (on Github)</a></p>
+    <p>eddrit is a lightweight alternative frontend for Reddit, inspired by old.reddit.com.</p>
+    <p>
+        This instance runs <a href="https://github.com/darlopvil/eddrit-fork">darlopvil/eddrit-fork</a>,
+        a fork of <a href="https://github.com/corenting/eddrit">corenting/eddrit</a> with fixes and
+        features that are not in upstream:
+    </p>
+    <ul>
+        <li>All media (images, GIFs, MP4 and DASH video) goes through the instance, so your browser never talks to Reddit's servers on its own.</li>
+        <li>Comment threads keep loading although Reddit blocks them for anonymous clients, through an optional logged-in session.</li>
+        <li>Comment permalinks and <code>/s/</code> share links work instead of returning 404.</li>
+        <li>Images linked in posts and comments are shown inline.</li>
+        <li>Saved images are named after the post title.</li>
+        <li>A compact <code>/embed</code> view of a post, for other sites' iframes.</li>
+    </ul>
+    <p>Licensed under the MIT license, like upstream.</p>
 </article>
 
 {% endblock %}
