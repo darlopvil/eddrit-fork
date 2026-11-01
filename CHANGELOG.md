@@ -12,6 +12,7 @@
 - feat(media): on-disk cache with size/age limits
 - chore: alphabetical imports, writable tldextract cache
 - feat(embed): compact, frameable `/embed` view of a post for other sites' iframes
+- feat(session): fetch comment threads with an optional logged-in session (`REDDIT_SESSION`)
 
 ---
 

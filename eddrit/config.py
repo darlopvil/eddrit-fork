@@ -13,3 +13,6 @@ MEDIA_CACHE_ENABLED: bool = env.bool("MEDIA_CACHE_ENABLED", default=False)
 MEDIA_CACHE_DIR: str = env.str("MEDIA_CACHE_DIR", default="/media-cache")
 MEDIA_CACHE_MAX_MB: int = env.int("MEDIA_CACHE_MAX_MB", default=5120)
 MEDIA_CACHE_DAYS: int = env.int("MEDIA_CACHE_DAYS", default=7)
+# Value of the reddit_session cookie of a logged-in (throwaway) account, used
+# only for comment threads. See eddrit/utils/session.py
+REDDIT_SESSION: str = env.str("REDDIT_SESSION", default="")

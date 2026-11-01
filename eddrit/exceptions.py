@@ -43,6 +43,17 @@ class WikiPageNotFoundError(RedditContentUnavailableError):
     detail = "Wiki page not found"
 
 
+class RedditSessionRejectedError(RedditContentUnavailableError):
+    """
+    Raised when Reddit blocks a thread request made with REDDIT_SESSION.
+    """
+
+    detail = "Reddit rejected the logged-in session used for comment threads (REDDIT_SESSION): the cookie has probably expired. Renew it"
+
+    def __init__(self) -> None:
+        super().__init__(status_code=503)
+
+
 class RateLimitedError(RedditContentUnavailableError):
     """
     Raised when rate-limit is reached

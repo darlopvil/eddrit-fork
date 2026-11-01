@@ -35,6 +35,11 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
   NSFW and spoiler content behind a click instead of the `/over18` redirect, and errors
   shown inline. `?theme=light|dark` forces the theme, since the host page doesn't send
   eddrit's cookies. Your reverse proxy must not add `X-Frame-Options` to these routes.
+- **Comment threads with a logged-in session (`REDDIT_SESSION`).** Since 20 Oct 2026 Reddit
+  blocks every comments route for anonymous tokens (403 "blocked by network security") while
+  listings keep working, so post pages fail. Set `REDDIT_SESSION` to the value of the
+  `reddit_session` cookie of a logged-in **throwaway** account and thread requests go to
+  `www.reddit.com` with it. Everything else stays anonymous. Unset, nothing changes.
 
 ### Notes
 

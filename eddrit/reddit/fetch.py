@@ -6,6 +6,7 @@ import httpx
 from eddrit import models
 from eddrit.constants import REDDIT_BASE_API_URL
 from eddrit.reddit import parser
+from eddrit.utils.session import get_thread
 
 
 async def get_frontpage_information() -> models.Subreddit:
@@ -175,20 +176,24 @@ async def _get_rss_feed_from_reddit(
     url += ".rss"
 
     res = await http_client.get(url, params=query_params)
+    return _rewrite_rss_links(res.text, eddrit_instance_scheme_and_netloc)
 
-    rss_feed_content = res.text
-    rss_feed_content = rss_feed_content.replace(
+
+def _rewrite_rss_links(
+    rss_feed_content: str, eddrit_instance_scheme_and_netloc: str
+) -> str:
+    """Point the links of a Reddit RSS feed to the current instance."""
+    return rss_feed_content.replace(
         "https://www.reddit.com", eddrit_instance_scheme_and_netloc
     )
-    return rss_feed_content
 
 
-def _get_url_for_post(subreddit: str, post_id: str, is_user: bool):
+def _get_path_for_post(subreddit: str, post_id: str, is_user: bool) -> str:
     """
-    Get the URL to query to fetch a post
+    Get the path to query to fetch a post (a comments route, see get_thread)
     """
     path_part = "user" if is_user else "r"
-    return f"{REDDIT_BASE_API_URL}/{path_part}/{subreddit}/comments/{post_id}/.json"
+    return f"/{path_part}/{subreddit}/comments/{post_id}/.json"
 
 
 async def get_post(
@@ -200,8 +205,8 @@ async def get_post(
     """
     Get a post in a subreddit or an user page
     """
-    url = _get_url_for_post(subreddit_or_username, post_id, is_user)
-    res = await http_client.get(url)
+    path = _get_path_for_post(subreddit_or_username, post_id, is_user)
+    res = await get_thread(http_client, path)
 
     post = parser.parse_post(res.json()[0]["data"]["children"][0]["data"])
 
@@ -222,12 +227,12 @@ async def get_post_rss(
     eddrit_instance_scheme_and_netloc: str,
     is_user: bool,
 ) -> str:
-    url = _get_url_for_post(subreddit_or_username, post_id, is_user)
-    url = url.removesuffix(".json")
-    url += ".rss"
-    return await _get_rss_feed_from_reddit(
-        http_client, url, {}, eddrit_instance_scheme_and_netloc
+    path = _get_path_for_post(subreddit_or_username, post_id, is_user)
+    path = path.removesuffix(".json") + ".rss"
+    res = await get_thread(
+        http_client, path, headers={"Accept": "application/atom+xml, */*"}
     )
+    return _rewrite_rss_links(res.text, eddrit_instance_scheme_and_netloc)
 
 
 async def get_wiki_page(
@@ -247,8 +252,8 @@ async def get_wiki_page(
 async def get_comments(
     http_client: httpx.AsyncClient, subreddit: str, post_id: str, comment_id: str
 ) -> Iterable[models.PostComment | models.PostCommentShowMore]:
-    url = f"{REDDIT_BASE_API_URL}/r/{subreddit}/comments/{post_id}/comments/{comment_id}/.json"
-    res = await http_client.get(url)
+    path = f"/r/{subreddit}/comments/{post_id}/comments/{comment_id}/.json"
+    res = await get_thread(http_client, path)
 
     return parser.parse_comments_tree(res.json()[1]["data"])
 
