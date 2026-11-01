@@ -30,7 +30,7 @@ content_expanded) %}
         <div class="col">
             {# Title + flairs #}
             <div class="post-title">
-                <a href="{{ post.url }}">
+                <a href="{{ post | post_link }}">
                     <strong class="{{ 'post-sticky' if show_if_post_is_sticky and post.is_sticky else '' }}">{{
                         post.title }}</strong>
                 </a>
@@ -72,6 +72,12 @@ content_expanded) %}
                             </span>
                             <small>{{ post.comments_count }} comments</small>
                         </a>
+                        {% if content_expanded %}
+                        {# Only on the post page. The marker lets a redirect rule
+                           (Redirector, LibRedirect) leave this one link alone. #}
+                        <small> · <a href="https://www.reddit.com{{ post.comments_url_path }}?noredirect=1"
+                                target="_blank" rel="noopener noreferrer">open on Reddit</a></small>
+                        {% endif %}
                     </small>
                 </span>
             </span>
@@ -107,9 +113,9 @@ content_expanded) %}
 
     {% if post.content.type.value == 'picture' %}
     {# Put src in data-src (here and below) if not expanded and setting it up later in JS to avoid Firefox loading all the ressources in templates #}
-    <a href="{{ post.url }}">
+    <a href="{{ post.content.picture.url | media(post.title) }}">
         <img loading="lazy" height="{{ post.content.picture.height }}" width="{{ post.content.picture.width }}"
-            class="post-content-image-or-video" data-src="{{ post.content.picture.url | media }}" {{ "src=" ~ (post.content.picture.url | media) if expanded else ""}}  />
+            class="post-content-image-or-video" data-src="{{ post.content.picture.url | media(post.title) }}" {{ "src=" ~ (post.content.picture.url | media(post.title)) if expanded else ""}}  />
     </a>
     {% endif %}
     {% if post.content.type.value == 'gallery' %}
@@ -141,9 +147,10 @@ content_expanded) %}
                             <figcaption class="post-content-gallery-caption">{{ post.content.captions[loop.index0] | safe }}
                             </figcaption>
                         {% endif %}
-                        <a href="{{ item.url }}">
+                        {% set item_name = post.title ~ " " ~ loop.index %}
+                        <a href="{{ item.url | media(item_name) }}">
                             <img class="post-content-image-or-video"
-                                height="{{ item.height }}" width="{{ item.width }}" data-src="{{ item.url | media }}" {{ "src=" ~ (item.url | media) if expanded else ""}}  />
+                                height="{{ item.height }}" width="{{ item.width }}" data-src="{{ item.url | media(item_name) }}" {{ "src=" ~ (item.url | media(item_name)) if expanded else ""}}  />
                         </a>
                     </figure>
                 {% endif %}

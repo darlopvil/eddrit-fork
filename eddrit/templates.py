@@ -67,17 +67,46 @@ templates.env.filters["tojson_dataclass"] = to_json_dataclass
 # Rewrite Reddit media URLs to go through our /media proxy, so the user's
 # browser never talks to Reddit's CDNs. No-op when PROXY_MEDIA is disabled or
 # when the URL is not a proxyable Reddit host (e.g. our own static files).
-def media_url(value: Any) -> Any:
+#
+# `name` (optional) becomes the file name the browser offers when the media is
+# saved ("Save image as"), instead of "media". Usually the post title.
+def media_url(value: Any, name: str | None = None) -> Any:
     if not config.PROXY_MEDIA or not value or not isinstance(value, str):
         return value
     if not value.startswith("https://"):
         return value
     if urlparse(value).hostname not in ALLOWED_MEDIA_HOSTS:
         return value
-    return f"/media?url={quote(value, safe='')}"
+    proxied = f"/media?url={quote(value, safe='')}"
+    if name:
+        proxied += f"&name={quote(name, safe='')}"
+    return proxied
 
 
 templates.env.filters["media"] = media_url
+
+
+# Where the title of a post points. Upstream uses post.url as is, which for
+# Reddit-hosted content sends the browser straight to Reddit: i.redd.it images,
+# v.redd.it videos, reddit.com/gallery/<id> and crossposts to reddit.com.
+def post_link(post: models.Post) -> str:
+    if post.content.type == models.PostContentType.PICTURE:
+        return media_url(post.content.picture.url, post.title)  # type: ignore[attr-defined]
+
+    parsed = urlparse(post.url)
+    host = parsed.hostname or ""
+    if not host:
+        return post.url  # self posts: already a path on this instance
+    if host == "v.redd.it" or parsed.path.startswith("/gallery/"):
+        return post.comments_url_path
+    if host == "reddit.com" or host.endswith(".reddit.com"):
+        return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    if host in ALLOWED_MEDIA_HOSTS:
+        return media_url(post.url, post.title)
+    return post.url
+
+
+templates.env.filters["post_link"] = post_link
 
 
 def dash_media_url(value: str) -> str:

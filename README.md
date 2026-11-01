@@ -40,6 +40,10 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
   listings keep working, so post pages fail. Set `REDDIT_SESSION` to the value of the
   `reddit_session` cookie of a logged-in **throwaway** account and thread requests go to
   `www.reddit.com` with it. Everything else stays anonymous. Unset, nothing changes.
+- **No links to Reddit by accident.** Post titles and images that pointed at `i.redd.it`,
+  `v.redd.it` or `reddit.com/gallery` now open through the instance, and saved images are
+  named after the post title instead of `media`. The post page has an explicit "open on
+  Reddit" link, tagged `?noredirect=1` so redirect rules can let it through.
 
 ### Notes
 

@@ -13,6 +13,9 @@
 - chore: alphabetical imports, writable tldextract cache
 - feat(embed): compact, frameable `/embed` view of a post for other sites' iframes
 - feat(session): fetch comment threads with an optional logged-in session (`REDDIT_SESSION`)
+- fix(media): post titles and images no longer link to Reddit; saved images are named after the post
+- feat(post): explicit "open on Reddit" link on the post page
+- docs(about): footer and about page describe this fork, without the version number
 
 ---
 

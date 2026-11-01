@@ -1,4 +1,5 @@
-from urllib.parse import urlparse
+import re
+from urllib.parse import quote, urlparse
 
 import httpx
 from starlette.exceptions import HTTPException
@@ -30,6 +31,17 @@ ALLOWED_HOSTS = frozenset(
 ALLOWED_CONTENT_TYPE_PREFIXES = ("image/", "video/", "application/dash+xml")
 
 BROWSER_CACHE_SECONDS = 86400
+
+# Extension for the file name offered when saving, by content type
+EXTENSIONS = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/avif": ".avif",
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+}
 
 # Reddit's media CDN rejects the Android app User-Agent used for the API
 # (403 + HTML block page). A regular browser UA is required here.
@@ -86,10 +98,26 @@ async def media_proxy(request: Request) -> Response:
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         raise HTTPException(status_code=403, detail="Host not allowed")
 
-    return await _proxy_url(request, url)
+    return await _proxy_url(request, url, request.query_params.get("name"))
 
 
-async def _proxy_url(request: Request, url: str) -> Response:
+def _content_disposition(name: str, content_type: str) -> str:
+    """`inline` (shown as usual) but with a real file name for "Save as".
+
+    Without it browsers name every saved file "media", after the route.
+    """
+    base = re.sub(r'[\x00-\x1f\x7f/\\:*?"<>|]+', " ", name)
+    base = re.sub(r"\s+", " ", base).strip(" .")[:100].rstrip(" .")
+    ext = EXTENSIONS.get(content_type.split(";")[0].strip().lower(), "")
+    full = f"{base or 'media'}{ext}"
+    # Plain ASCII fallback for old clients; filename* carries the real UTF-8 name
+    ascii_base = base.encode("ascii", "ignore").decode()
+    ascii_base = re.sub(r"\s+", " ", ascii_base).strip(" .")
+    ascii_name = f"{ascii_base or 'media'}{ext}"
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(full, safe='')}"
+
+
+async def _proxy_url(request: Request, url: str, name: str | None = None) -> Response:
     """Fetch `url` upstream and stream it back, with cache and Range support."""
     if not config.PROXY_MEDIA:
         raise HTTPException(status_code=404)
@@ -102,14 +130,17 @@ async def _proxy_url(request: Request, url: str) -> Response:
         await media_cache.cleanup_if_needed()
         if cached := media_cache.get(url):
             payload, cached_type = cached
+            cached_headers = {
+                "Cache-Control": f"public, max-age={BROWSER_CACHE_SECONDS}",
+                "Accept-Ranges": "bytes",
+                "X-Media-Cache": "HIT",
+            }
+            if name:
+                cached_headers["Content-Disposition"] = _content_disposition(
+                    name, cached_type
+                )
             return Response(
-                content=payload,
-                media_type=cached_type,
-                headers={
-                    "Cache-Control": f"public, max-age={BROWSER_CACHE_SECONDS}",
-                    "Accept-Ranges": "bytes",
-                    "X-Media-Cache": "HIT",
-                },
+                content=payload, media_type=cached_type, headers=cached_headers
             )
 
     client = _get_client()
@@ -154,6 +185,10 @@ async def _proxy_url(request: Request, url: str) -> Response:
         response_headers["Content-Length"] = content_length
     if content_range := upstream.headers.get("content-range"):
         response_headers["Content-Range"] = content_range
+    if name:
+        response_headers["Content-Disposition"] = _content_disposition(
+            name, content_type
+        )
 
     return StreamingResponse(
         stream_and_close(),

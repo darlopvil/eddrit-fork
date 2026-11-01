@@ -41,10 +41,10 @@
     {% endif %}
 
     {% if content.type.value == 'picture' %}
-    <a href="{{ content.picture.url | media }}">
+    <a href="{{ content.picture.url | media(post.title) }}">
         <img class="embed-media" loading="lazy" alt=""
             width="{{ content.picture.width }}" height="{{ content.picture.height }}"
-            src="{{ content.picture.url | media }}">
+            src="{{ content.picture.url | media(post.title) }}">
     </a>
 
     {% elif content.type.value == 'gallery' %}
@@ -55,9 +55,10 @@
             {% if item.is_gif is defined %}
             {{ render_video([item] | embed_video) }}
             {% else %}
-            <a href="{{ item.url | media }}">
+            {% set item_name = post.title ~ " " ~ loop.index %}
+            <a href="{{ item.url | media(item_name) }}">
                 <img class="embed-media" loading="lazy" alt=""
-                    width="{{ item.width }}" height="{{ item.height }}" src="{{ item.url | media }}">
+                    width="{{ item.width }}" height="{{ item.height }}" src="{{ item.url | media(item_name) }}">
             </a>
             {% endif %}
             {% if content.captions[loop.index0] %}
