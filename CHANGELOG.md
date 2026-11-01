@@ -20,6 +20,7 @@
 - fix(session): clear message instead of a 500 when the session reaches its rate limit
 - feat(frontends): links and embeds of YouTube, X, TikTok, Imgur, Tumblr and Tenor through privacy frontends
 - fix(session): Firefox fingerprint for session requests (`REDDIT_SESSION_IMPERSONATE`), Chrome is now blocked on www
+- feat(session): thread cache in Valkey and pause of the session before its quota runs out
 
 ---
 

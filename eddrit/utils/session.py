@@ -10,9 +10,18 @@ routes answer normally on www.reddit.com.
 
 Opt-in through REDDIT_SESSION. Everything else stays anonymous, so the account
 only ever sees which threads are opened. Use a throwaway account.
+
+The account is also protected from being used up: threads are cached for a
+few minutes (reloading or going back costs nothing), and when Reddit says the
+session's quota is running low, eddrit stops using it until the window resets
+instead of draining it. On 1 Nov 2026 a scraper spent the whole quota of the
+first throwaway account (about 100 threads every 10 minutes for hours).
 """
 
+import zlib
+
 import httpx
+import valkey.asyncio as valkey_asyncio
 from loguru import logger
 
 from eddrit import config
@@ -29,17 +38,103 @@ from eddrit.utils.httpx import (
 
 REDDIT_WEB_URL = "https://www.reddit.com"
 
+# Reddit gives a session 100 requests every 10 minutes and reports what is
+# left in x-ratelimit-remaining. Below this many, eddrit stops using the
+# session until the window resets, so the account never runs dry.
+SESSION_QUOTA_FLOOR = 20
+
+_PAUSE_KEY = "session_quota_pause_v1"
+_CACHE_PREFIX = "thread_cache_v1:"
+
 # One client per worker process, created on first use (inside the worker's
 # event loop) and closed by the app lifespan.
 _client: httpx.AsyncClient | None = None
+_valkey: valkey_asyncio.Valkey | None = None
+
+
+def _get_valkey() -> valkey_asyncio.Valkey:
+    global _valkey
+    if _valkey is None:
+        _valkey = valkey_asyncio.from_url(config.VALKEY_URL)
+    return _valkey
+
+
+async def _pause_session(seconds: int) -> None:
+    try:
+        await _get_valkey().set(_PAUSE_KEY, "1", ex=max(seconds, 1))
+    except Exception:
+        logger.exception("Cannot store the session pause in Valkey")
+
+
+async def _session_paused_for() -> int:
+    """Seconds left of a pause of the session, 0 if it is not paused."""
+    try:
+        ttl = await _get_valkey().ttl(_PAUSE_KEY)
+    except Exception:
+        logger.exception("Cannot read the session pause from Valkey")
+        return 0
+    return max(0, ttl)
+
+
+async def _cache_get(path: str) -> tuple[bytes, str] | None:
+    if config.THREAD_CACHE_SECONDS <= 0:
+        return None
+    try:
+        cached = await _get_valkey().hgetall(_CACHE_PREFIX + path)
+    except Exception:
+        logger.exception("Cannot read the thread cache from Valkey")
+        return None
+    if not cached:
+        return None
+    return zlib.decompress(cached[b"body"]), cached[b"type"].decode()
+
+
+async def _cache_put(path: str, response: httpx.Response) -> None:
+    if config.THREAD_CACHE_SECONDS <= 0 or response.status_code != 200:
+        return
+    key = _CACHE_PREFIX + path
+    try:
+        async with _get_valkey().pipeline(transaction=True) as pipe:
+            pipe.hset(
+                key,
+                mapping={
+                    "body": zlib.compress(response.content),
+                    "type": response.headers.get("content-type", "application/json"),
+                },
+            )
+            pipe.expire(key, config.THREAD_CACHE_SECONDS)
+            await pipe.execute()
+    except Exception:
+        logger.exception("Cannot store a thread in the Valkey cache")
 
 
 async def _raise_if_session_rate_limited(response: httpx.Response) -> None:
-    """The session has its own quota (100 requests every 10 minutes). Reddit
-    answers past it with an empty 429, which would otherwise fail as JSON."""
+    """Past the quota Reddit answers with an empty 429, which would otherwise
+    fail as JSON. It does not say when the window resets: pause 10 minutes,
+    the length of a whole window."""
     if response.status_code == 429:
         logger.warning("REDDIT_SESSION reached Reddit's rate limit")
-        raise RedditSessionRateLimitedError()
+        await _pause_session(600)
+        raise RedditSessionRateLimitedError(retry_after=600)
+
+
+async def _track_session_quota(response: httpx.Response) -> None:
+    """Pause the session when Reddit reports that its quota is running low."""
+    remaining = response.headers.get("x-ratelimit-remaining")
+    reset = response.headers.get("x-ratelimit-reset")
+    if remaining is None or reset is None:
+        return
+    try:
+        remaining_value = float(remaining)
+        reset_seconds = int(float(reset)) + 1
+    except ValueError:
+        return
+    if remaining_value < SESSION_QUOTA_FLOOR:
+        logger.warning(
+            f"REDDIT_SESSION has {remaining_value:.0f} requests left in Reddit's "
+            f"window: pausing it for {reset_seconds}s"
+        )
+        await _pause_session(reset_seconds)
 
 
 def _get_client() -> httpx.AsyncClient:
@@ -60,6 +155,7 @@ def _get_client() -> httpx.AsyncClient:
             event_hooks={
                 "response": [
                     _raise_if_session_rate_limited,
+                    _track_session_quota,
                     raise_if_content_is_not_available,
                 ]
             },
@@ -75,25 +171,47 @@ async def get_thread(
     """GET a comments route: with the session when configured, else anonymously.
 
     `http_client` is the app's anonymous client, used when REDDIT_SESSION is
-    not set (same behaviour as before the session existed).
+    not set (same behaviour as before the session existed). Either way the
+    answer is cached for THREAD_CACHE_SECONDS.
     """
+    base_url = REDDIT_WEB_URL if config.REDDIT_SESSION else REDDIT_BASE_API_URL
+    if cached := await _cache_get(path):
+        body, content_type = cached
+        return httpx.Response(
+            200,
+            content=body,
+            headers={"content-type": content_type},
+            request=httpx.Request("GET", f"{base_url}{path}"),
+        )
+
     if not config.REDDIT_SESSION:
-        return await http_client.get(f"{REDDIT_BASE_API_URL}{path}", headers=headers)
+        response = await http_client.get(f"{base_url}{path}", headers=headers)
+        await _cache_put(path, response)
+        return response
+
+    if paused_for := await _session_paused_for():
+        raise RedditSessionRateLimitedError(retry_after=paused_for)
 
     try:
-        return await _get_client().get(f"{REDDIT_WEB_URL}{path}", headers=headers)
+        response = await _get_client().get(f"{base_url}{path}", headers=headers)
     except RateLimitedError as e:
         # Never log the cookie itself
         logger.warning(
             "Reddit blocked a thread request made with REDDIT_SESSION: the "
-            "session cookie has probably expired or been logged out"
+            "cookie has expired or Reddit blocks the fingerprint "
+            "(REDDIT_SESSION_IMPERSONATE)"
         )
         raise RedditSessionRejectedError() from e
+    await _cache_put(path, response)
+    return response
 
 
 async def close() -> None:
-    """Close the session client, if it was ever created."""
-    global _client
+    """Close the session and Valkey clients, if they were ever created."""
+    global _client, _valkey
     if _client is not None:
         await _client.aclose()
         _client = None
+    if _valkey is not None:
+        await _valkey.aclose()
+        _valkey = None

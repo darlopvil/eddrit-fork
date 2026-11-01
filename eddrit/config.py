@@ -23,6 +23,9 @@ REDDIT_SESSION: str = env.str("REDDIT_SESSION", default="")
 REDDIT_SESSION_IMPERSONATE: str = env.str(
     "REDDIT_SESSION_IMPERSONATE", default="firefox147"
 )
+# How long a comment thread is kept in Valkey (seconds, 0 = no cache), so that
+# reloading or going back does not spend the session's quota again.
+THREAD_CACHE_SECONDS: int = env.int("THREAD_CACHE_SECONDS", default=300)
 
 
 def _frontend_url(name: str) -> str | None:

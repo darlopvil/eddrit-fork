@@ -42,7 +42,9 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
   `www.reddit.com` with it. Everything else stays anonymous. Unset, nothing changes.
   Those requests use a Firefox fingerprint (`REDDIT_SESSION_IMPERSONATE`, default
   `firefox147`): since 1 Nov 2026 Reddit blocks Chrome fingerprints from datacenter IPs on
-  `www` even with a valid session.
+  `www` even with a valid session. To keep the account from being used up, threads are cached
+  in Valkey for 5 minutes (`THREAD_CACHE_SECONDS`) and the session is paused when Reddit
+  reports fewer than 20 requests left in its 10-minute window.
 - **No links to Reddit by accident.** Post titles and images that pointed at `i.redd.it`,
   `v.redd.it` or `reddit.com/gallery` now open through the instance, and saved images are
   named after the post title instead of `media`. The post page has an explicit "open on
