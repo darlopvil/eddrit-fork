@@ -15,6 +15,7 @@ from eddrit.reddit.content_parser.media import (
     get_post_video_content,
     post_has_video_content,
 )
+from eddrit.utils.frontends import rewrite_links
 from eddrit.utils.math import pretty_big_num
 from eddrit.utils.urls import get_domain_and_suffix_from_url
 
@@ -73,6 +74,9 @@ def clean_content(initial_content: str) -> str:
     # eddrit left them as plain links. Convert them to <img> (through our media
     # proxy when enabled) so they render like on reddit.com.
     content = INLINE_IMAGE_LINKS_REGEX.sub(_inline_image_replacement, content)
+
+    # Links to YouTube, X, Imgur... go to the configured privacy frontends
+    content = rewrite_links(content)
 
     return content
 

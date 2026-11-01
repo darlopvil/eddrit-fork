@@ -44,6 +44,11 @@ fixes and features not (yet) in upstream. Built from source and self-hosted.
   `v.redd.it` or `reddit.com/gallery` now open through the instance, and saved images are
   named after the post title instead of `media`. The post page has an explicit "open on
   Reddit" link, tagged `?noredirect=1` so redirect rules can let it through.
+- **Third-party content through privacy frontends.** Optional `INVIDIOUS_URL`, `NITTER_URL`,
+  `PROXITOK_URL`, `RIMGO_URL`, `PRIVIBLUR_URL` and `SOPRANO_URL`. Links in titles, posts and
+  comments point to them, and YouTube videos, tweets, TikToks and Tumblr posts are embedded
+  from them. Embeds never load the original site's player: with no frontend set they become
+  a plain link, so opening a post with a YouTube video no longer pulls in Google's trackers.
 
 ### Notes
 

@@ -72,16 +72,23 @@
     {{ render_video(content.videos | embed_video) }}
 
     {% elif content.type.value == 'embed' %}
-    {# Third-party player (YouTube, Twitch...): not loaded here, only linked #}
-    <a class="embed-link-card" href="{{ post.url }}">
+    {# Third-party player (YouTube, Twitch...): the frontend's embed when there
+       is one, otherwise only a link. See utils/frontends.py #}
+    {% set target = post.url | embed_target %}
+    {% if target.iframe %}
+    <iframe class="embed-iframe" src="{{ target.iframe }}" loading="lazy" frameborder="0"
+        allowfullscreen></iframe>
+    {% else %}
+    <a class="embed-link-card" href="{{ target.href }}">
         {% if content.poster_url %}
         <img class="embed-media" loading="lazy" alt="" src="{{ content.poster_url | media }}">
         {% endif %}
         <span>Watch on {{ post.domain }}</span>
     </a>
+    {% endif %}
 
     {% elif content.type.value == 'link' %}
-    <a class="embed-link-card" href="{{ post.url }}">
+    <a class="embed-link-card" href="{{ post.url | frontend }}">
         {% if not post.thumbnail_is_icon and post.thumbnail_url.startswith('https://') %}
         <img class="embed-link-thumbnail" loading="lazy" alt="" src="{{ post.thumbnail_url | media }}">
         {% endif %}

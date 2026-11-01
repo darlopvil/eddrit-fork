@@ -162,8 +162,21 @@ content_expanded) %}
         {{ render_video_item(post.id, post.content.videos) }}
     {% endif %}
     {% if post.content.type.value == 'embed' %}
+    {# Never the site's own player (it loads its trackers): the frontend's
+       embed when there is one, otherwise a link. See utils/frontends.py #}
+    {% set target = post.url | embed_target %}
     <div class="post-content-image-or-video">
-        {{ post.content.url |safe }}
+        {% if target.iframe %}
+        <iframe class="post-content-iframe" src="{{ target.iframe }}" loading="lazy"
+            frameborder="0" allowfullscreen></iframe>
+        {% else %}
+        <a href="{{ target.href }}" target="_blank" rel="noopener noreferrer">
+            {% if post.content.poster_url %}
+            <img class="post-content-image-or-video" loading="lazy" src="{{ post.content.poster_url | media }}" />
+            {% endif %}
+            Open on {{ post.domain }}
+        </a>
+        {% endif %}
     </div>
     {% endif %}
 </div>

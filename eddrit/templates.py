@@ -8,6 +8,7 @@ from starlette.templating import Jinja2Templates
 
 from eddrit import __version__, config, models
 from eddrit.routes.pages.media import ALLOWED_HOSTS as ALLOWED_MEDIA_HOSTS
+from eddrit.utils.frontends import embed_target, frontend_href
 from eddrit.utils.subreddit import is_homepage
 
 templates = Jinja2Templates(directory="templates")
@@ -47,7 +48,9 @@ def _proxy_video_urls(item: Any) -> Any:
         return item
     for key in ("url", "poster_url"):
         if value := item.get(key):
-            item[key] = media_url(value)
+            proxied = media_url(value)
+            # Not a Reddit host (e.g. an Imgur .gifv as MP4): its frontend
+            item[key] = frontend_href(proxied) if proxied == value else proxied
     return item
 
 
@@ -103,10 +106,12 @@ def post_link(post: models.Post) -> str:
         return parsed.path + (f"?{parsed.query}" if parsed.query else "")
     if host in ALLOWED_MEDIA_HOSTS:
         return media_url(post.url, post.title)
-    return post.url
+    return frontend_href(post.url)
 
 
 templates.env.filters["post_link"] = post_link
+templates.env.filters["frontend"] = frontend_href
+templates.env.filters["embed_target"] = embed_target
 
 
 def dash_media_url(value: str) -> str:

@@ -16,3 +16,18 @@ MEDIA_CACHE_DAYS: int = env.int("MEDIA_CACHE_DAYS", default=7)
 # Value of the reddit_session cookie of a logged-in (throwaway) account, used
 # only for comment threads. See eddrit/utils/session.py
 REDDIT_SESSION: str = env.str("REDDIT_SESSION", default="")
+
+
+def _frontend_url(name: str) -> str | None:
+    """Base URL of a privacy frontend, without trailing slash. Empty = unset."""
+    return env.str(name, default="").rstrip("/") or None
+
+
+# Self-hosted frontends for third-party links and embeds. See
+# eddrit/utils/frontends.py
+INVIDIOUS_URL: str | None = _frontend_url("INVIDIOUS_URL")
+NITTER_URL: str | None = _frontend_url("NITTER_URL")
+PROXITOK_URL: str | None = _frontend_url("PROXITOK_URL")
+RIMGO_URL: str | None = _frontend_url("RIMGO_URL")
+PRIVIBLUR_URL: str | None = _frontend_url("PRIVIBLUR_URL")
+SOPRANO_URL: str | None = _frontend_url("SOPRANO_URL")

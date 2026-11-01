@@ -129,6 +129,14 @@ video.embed-media {
 	background: #000;
 }
 
+.embed-iframe {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	max-height: var(--embed-media-max-height);
+	border: 0;
+}
+
 .embed-text pre,
 .embed-text table {
 	display: block;
