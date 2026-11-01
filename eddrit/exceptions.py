@@ -54,6 +54,17 @@ class RedditSessionRejectedError(RedditContentUnavailableError):
         super().__init__(status_code=503)
 
 
+class RedditSessionRateLimitedError(RedditContentUnavailableError):
+    """
+    Raised when the logged-in session used for threads reaches Reddit's limit.
+    """
+
+    detail = "The logged-in session used for comment threads reached Reddit's limit (100 requests every 10 minutes). Try again in a few minutes"
+
+    def __init__(self) -> None:
+        super().__init__(status_code=429)
+
+
 class RateLimitedError(RedditContentUnavailableError):
     """
     Raised when rate-limit is reached

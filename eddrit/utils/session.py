@@ -17,7 +17,11 @@ from loguru import logger
 
 from eddrit import config
 from eddrit.constants import REDDIT_BASE_API_URL
-from eddrit.exceptions import RateLimitedError, RedditSessionRejectedError
+from eddrit.exceptions import (
+    RateLimitedError,
+    RedditSessionRateLimitedError,
+    RedditSessionRejectedError,
+)
 from eddrit.utils.httpx import (
     get_httpx_async_transport,
     raise_if_content_is_not_available,
@@ -28,6 +32,14 @@ REDDIT_WEB_URL = "https://www.reddit.com"
 # One client per worker process, created on first use (inside the worker's
 # event loop) and closed by the app lifespan.
 _client: httpx.AsyncClient | None = None
+
+
+async def _raise_if_session_rate_limited(response: httpx.Response) -> None:
+    """The session has its own quota (100 requests every 10 minutes). Reddit
+    answers past it with an empty 429, which would otherwise fail as JSON."""
+    if response.status_code == 429:
+        logger.warning("REDDIT_SESSION reached Reddit's rate limit")
+        raise RedditSessionRateLimitedError()
 
 
 def _get_client() -> httpx.AsyncClient:
@@ -43,7 +55,12 @@ def _get_client() -> httpx.AsyncClient:
                 # its responses must never replace the configured session.
                 "Cookie": f"reddit_session={config.REDDIT_SESSION}",
             },
-            event_hooks={"response": [raise_if_content_is_not_available]},
+            event_hooks={
+                "response": [
+                    _raise_if_session_rate_limited,
+                    raise_if_content_is_not_available,
+                ]
+            },
         )
     return _client
 

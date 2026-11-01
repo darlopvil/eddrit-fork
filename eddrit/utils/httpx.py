@@ -1,3 +1,4 @@
+import asyncio
 from json import JSONDecodeError
 
 import httpx
@@ -36,9 +37,62 @@ def get_httpx_async_transport(
     httpx.AsyncClient), otherwise httpx routes proxied requests through its
     default transport and bypasses the impersonation entirely.
     """
-    return AsyncCurlTransport(
-        impersonate=IMPERSONATE, default_headers=True, proxy=proxy
+    return RecyclingAsyncTransport(proxy=proxy)
+
+
+def _is_blocked_page(response: httpx.Response) -> bool:
+    return response.status_code == 403 and b"blocked by network security" in (
+        response.content
     )
+
+
+class RecyclingAsyncTransport(httpx.AsyncBaseTransport):
+    """curl_cffi transport that starts over when Reddit blocks it.
+
+    Reddit's edge can flag a long-lived connection (or the curl session behind
+    it) and keep answering it with the "blocked by network security" 403, while
+    a brand-new one from the same IP, with the same token, works. Seen on
+    1 Nov 2026: three 429 pages in a row, then 200 right after restarting
+    eddrit, nothing else changed. Instead of needing that restart, a blocked
+    GET is retried once on a fresh curl session (new connection and cookies).
+    If that one is blocked too, the IP itself is blocked and the 403 is
+    returned as usual.
+    """
+
+    def __init__(self, proxy: str | None = None) -> None:
+        self._proxy = proxy
+        self._inner = self._new_inner()
+
+    def _new_inner(self) -> AsyncCurlTransport:
+        return AsyncCurlTransport(
+            impersonate=IMPERSONATE, default_headers=True, proxy=self._proxy
+        )
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        inner = self._inner
+        response = await inner.handle_async_request(request)
+        if response.status_code != 403 or request.method not in ("GET", "HEAD"):
+            return response
+
+        await response.aread()
+        if not _is_blocked_page(response):
+            return response
+
+        # Swap in a fresh session once, even if several requests hit the block
+        # at the same time. The old one is closed later, not now, so requests
+        # still running on it are not cut off.
+        if self._inner is inner:
+            logger.warning(
+                "Reddit blocked the current connection: retrying on a fresh one"
+            )
+            self._inner = self._new_inner()
+            asyncio.get_running_loop().call_later(
+                60, lambda: asyncio.ensure_future(inner.aclose())
+            )
+        return await self._inner.handle_async_request(request)
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
 
 
 async def raise_if_content_is_not_available(api_res: httpx.Response) -> None:

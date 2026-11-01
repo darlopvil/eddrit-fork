@@ -16,6 +16,8 @@
 - fix(media): post titles and images no longer link to Reddit; saved images are named after the post
 - feat(post): explicit "open on Reddit" link on the post page
 - docs(about): footer and about page describe this fork, without the version number
+- fix(httpx): retry once on a fresh connection when Reddit blocks the current one
+- fix(session): clear message instead of a 500 when the session reaches its rate limit
 
 ---
 
