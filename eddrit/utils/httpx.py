@@ -30,6 +30,7 @@ def get_httpx_transport(proxy: str | None = None) -> httpx.BaseTransport:
 
 def get_httpx_async_transport(
     proxy: str | None = None,
+    impersonate: str = IMPERSONATE,
 ) -> httpx.AsyncBaseTransport:
     """Get an HTTPX async transport with fingerprint impersonation.
 
@@ -37,7 +38,7 @@ def get_httpx_async_transport(
     httpx.AsyncClient), otherwise httpx routes proxied requests through its
     default transport and bypasses the impersonation entirely.
     """
-    return RecyclingAsyncTransport(proxy=proxy)
+    return RecyclingAsyncTransport(proxy=proxy, impersonate=impersonate)
 
 
 def _is_blocked_page(response: httpx.Response) -> bool:
@@ -59,13 +60,16 @@ class RecyclingAsyncTransport(httpx.AsyncBaseTransport):
     returned as usual.
     """
 
-    def __init__(self, proxy: str | None = None) -> None:
+    def __init__(
+        self, proxy: str | None = None, impersonate: str = IMPERSONATE
+    ) -> None:
         self._proxy = proxy
+        self._impersonate = impersonate
         self._inner = self._new_inner()
 
     def _new_inner(self) -> AsyncCurlTransport:
         return AsyncCurlTransport(
-            impersonate=IMPERSONATE, default_headers=True, proxy=self._proxy
+            impersonate=self._impersonate, default_headers=True, proxy=self._proxy
         )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:

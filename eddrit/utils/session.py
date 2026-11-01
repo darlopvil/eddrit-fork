@@ -48,7 +48,9 @@ def _get_client() -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             http2=True,
             timeout=httpx.Timeout(20.0, connect=10.0),
-            transport=get_httpx_async_transport(proxy=config.PROXY),
+            transport=get_httpx_async_transport(
+                proxy=config.PROXY, impersonate=config.REDDIT_SESSION_IMPERSONATE
+            ),
             headers={
                 "Accept": "application/json",
                 # A fixed header, not the cookie jar: cookies Reddit sets in
