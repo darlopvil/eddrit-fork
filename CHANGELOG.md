@@ -22,6 +22,8 @@
 - fix(session): Firefox fingerprint for session requests (`REDDIT_SESSION_IMPERSONATE`), Chrome is now blocked on www
 - feat(session): thread cache in Valkey and pause of the session before its quota runs out
 - fix(post): the post page renders even when the subreddit or user information fails
+- fix(share): links shared from a profile (`/user/<name>/s/<id>`) open the post instead of a missing subreddit
+- fix(subreddit): a subreddit that does not exist gives "Subreddit not found" (404) instead of a server error
 
 ---
 

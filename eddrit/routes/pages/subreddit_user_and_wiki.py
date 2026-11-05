@@ -374,7 +374,8 @@ async def subreddit_or_user_rss(request: Request) -> Response:
 
 async def share_link(request: Request) -> Response:
     """
-    Resolve a Reddit share link (/r/<sub>/s/<id>) to its canonical permalink.
+    Resolve a Reddit share link (/r/<sub>/s/<id> or /user/<name>/s/<id>) to
+    its canonical permalink.
 
     The web endpoint is WAF-blocked (403), but the app API resolves the share id
     via a 301 whose Location is the canonical URL when authenticated with the app
@@ -384,7 +385,10 @@ async def share_link(request: Request) -> Response:
     """
     name = request.path_params["name"]
     share_id = request.path_params["share_id"]
-    url = f"{REDDIT_BASE_API_URL}/r/{name}/s/{share_id}"
+    # A link shared from a profile must be asked for under /user/: under /r/
+    # Reddit does not find it and only redirects to the (missing) subreddit
+    kind = "user" if request.url.path.startswith("/user") else "r"
+    url = f"{REDDIT_BASE_API_URL}/{kind}/{name}/s/{share_id}"
 
     async with httpx.AsyncClient(
         http2=True,

@@ -106,7 +106,13 @@ async def raise_if_content_is_not_available(api_res: httpx.Response) -> None:
     request_path = str(api_res.request.url.path)
     is_user_path = "/user/" in request_path
     is_subreddit_path = "/r/" in request_path
-    has_json = not request_path.endswith(".rss") and api_res.request.method != "HEAD"
+    # A redirect has an HTML body, not JSON (e.g. a subreddit that does not
+    # exist redirects to the search): it is handled by the checks below
+    has_json = (
+        not request_path.endswith(".rss")
+        and api_res.request.method != "HEAD"
+        and not api_res.is_redirect
+    )
 
     # Rate-limit: HTML 403 blocked page (applies to all requests)
     if api_res.status_code == 403 and "blocked by network security" in api_res.text:
