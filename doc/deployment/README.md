@@ -14,21 +14,14 @@ You can run the app through Docker, or directly if you know how to deploy a Pyth
 
 ### Option 1: Docker (recommended)
 
-The image is available from:
-- [Docker Hub](https://hub.docker.com/r/corentingarcia/eddrit) as `corentingarcia/eddrit`
-- [ghcr.io](https://github.com/corenting/eddrit/pkgs/container/eddrit) as `ghcr.io/corenting/eddrit`
+This fork does not publish images: the images of upstream eddrit do not include its changes.
+Build it from a clone of the repository:
 
-The following tags are available:
-- `latest` for the latest stable tagged release (**recommended**)
-- `dev` for the latest development version (the latest commit on the master branch)
-- Version tags (like `0.1.1`, `0.1.2`) for specific versions
+```sh
+docker build -t eddrit:fork .
+```
 
-ℹ️ *Note*: an example `docker-compose.yml` file is available [here](./docker-compose.yml).
-
-The following architectures are supported:
-- `linux/amd64`
-- `linux/arm64`
-- `linux/arm/v7`
+ℹ️ *Note*: an example `docker-compose.yml` file that uses that image is available [here](./docker-compose.yml).
 
 ### Option 2: without Docker
 
@@ -54,3 +47,6 @@ Optional configuration:
 - `DEBUG` (default: `false`): enable [starlette](https://www.starlette.io/) debug mode. Should not be needed outside of development.
 - `LOG_LEVEL` (default: `WARNING`): only log messages at or above this level.
 - `PROXY` (default: none): if set, requests to Reddit will be sent through the specified proxy.
+
+The fork adds more optional variables (media proxy, logged-in session for comment threads,
+privacy frontends...): see the table in the [main README](../../README.md#configuration-added-by-the-fork).

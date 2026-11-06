@@ -1,7 +1,8 @@
 services:
   eddrit:
     container_name: eddrit
-    image: ghcr.io/corenting/eddrit:dev
+    # Built from this repository: docker build -t eddrit:fork .
+    image: eddrit:fork
     ports:
       - 8080:8080
     environment:
