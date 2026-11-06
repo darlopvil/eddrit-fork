@@ -17,9 +17,9 @@ A lightweight alternative frontend for Reddit.
 ## 🍴 Fork notes (darlopvil/eddrit-fork)
 
 This is a fork of [corenting/eddrit](https://github.com/corenting/eddrit) with fixes and
-features not (yet) in upstream. Built from source and self-hosted. Every change is additive
-and opt-in where it needs configuration: with none of the variables below set, it behaves
-like upstream.
+features of its own, maintained independently. Built from source and self-hosted. Changes
+that need configuration are opt-in: with none of the variables below set, those features
+stay off.
 
 ### Post pages and comment threads
 
@@ -105,7 +105,8 @@ like upstream.
 - Reddit blocks many datacenter IP ranges. `PROXY` lets eddrit go out through an HTTP proxy
   (for example a VPN container); that is a deployment choice, not a code requirement.
 - The footer and the About page describe this fork.
-- Kept in sync with upstream.
+- Maintained independently: upstream changes are not merged automatically, and this fork
+  takes care of its own maintenance.
 
 ---
 
