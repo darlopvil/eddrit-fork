@@ -48,7 +48,7 @@ class RedditSessionRejectedError(RedditContentUnavailableError):
     Raised when Reddit blocks a thread request made with REDDIT_SESSION.
     """
 
-    detail = "Reddit rejected the logged-in session used for comment threads (REDDIT_SESSION): the cookie has expired, or Reddit blocks the browser fingerprint (REDDIT_SESSION_IMPERSONATE)"
+    detail = "Reddit rejected the logged-in session used for comment threads and search (REDDIT_SESSION): the cookie has expired, or Reddit blocks the browser fingerprint (REDDIT_SESSION_IMPERSONATE)"
 
     def __init__(self) -> None:
         super().__init__(status_code=503)
@@ -64,7 +64,7 @@ class RedditSessionRateLimitedError(RedditContentUnavailableError):
         super().__init__(status_code=429)
         minutes = max(1, round(retry_after / 60)) if retry_after else None
         self.detail = (
-            "The logged-in session used for comment threads is at Reddit's limit "
+            "The logged-in session used for comment threads and search is at Reddit's limit "
             "(100 requests every 10 minutes) and is paused to protect the account. "
             + (
                 f"Try again in {minutes} min"

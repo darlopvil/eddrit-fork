@@ -26,6 +26,7 @@
 - fix(subreddit): a subreddit that does not exist gives "Subreddit not found" (404) instead of a server error
 - docs: drop upstream's demo instance, donations and image links; deployment docs build the fork
 - docs(readme): the fork is maintained independently, not kept in sync with upstream
+- fix(search): search through an API token minted for the session when Reddit blocks it for the anonymous token
 - docs(readme): fork notes grouped by topic, with every fork variable in one table
 
 ---

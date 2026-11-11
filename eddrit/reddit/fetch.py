@@ -1,12 +1,13 @@
 from collections.abc import Iterable
 from dataclasses import fields
+from urllib.parse import quote_plus
 
 import httpx
 
 from eddrit import models
 from eddrit.constants import REDDIT_BASE_API_URL
 from eddrit.reddit import parser
-from eddrit.utils.session import get_thread
+from eddrit.utils.session import get_api, get_thread
 
 
 async def get_frontpage_information() -> models.Subreddit:
@@ -24,7 +25,7 @@ async def get_frontpage_information() -> models.Subreddit:
 async def search_posts(
     http_client: httpx.AsyncClient, input_text: str
 ) -> list[models.Post]:
-    res = await http_client.get(f"{REDDIT_BASE_API_URL}/search.json?q={input_text}")
+    res = await get_api(http_client, f"/search.json?q={quote_plus(input_text)}")
     posts, _ = parser.parse_posts_and_comments(res.json())
 
     # Ignore response type as there is no models.PostComment for search posts
@@ -34,8 +35,8 @@ async def search_posts(
 async def search_subreddits(
     http_client: httpx.AsyncClient, input_text: str
 ) -> list[models.Subreddit]:
-    res = await http_client.get(
-        f"{REDDIT_BASE_API_URL}/subreddits/search.json?q={input_text}"
+    res = await get_api(
+        http_client, f"/subreddits/search.json?q={quote_plus(input_text)}"
     )
     results = res.json()["data"]["children"]
     return [

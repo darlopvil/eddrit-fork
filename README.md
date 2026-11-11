@@ -36,6 +36,13 @@ stay off.
   Threads are cached in Valkey for 5 minutes (`THREAD_CACHE_SECONDS`), so reloading or going
   back costs nothing, and the session is paused when Reddit reports fewer than 20 requests
   left in its window. While paused, the page says when to try again instead of failing.
+- **Search keeps working.** Since 11 Nov 2026 Reddit refuses post search to the anonymous
+  token on every host, and its website refuses every search to sessions. With
+  `REDDIT_SESSION` set, eddrit mints an API token for the session the way the Android app
+  does after logging in, and asks `oauth.reddit.com` with it. The anonymous token is still
+  tried first; once a search route is blocked for it, that route goes straight to the
+  session's token for 30 minutes. Searches share the account's quota, cache and pause with
+  threads.
 - **Clear errors.** A rejected session (expired cookie or blocked fingerprint) gives a 503
   that says so, and a session at its limit gives a 429 with the waiting time, instead of a 500.
 - **Comment permalinks render the thread** instead of a 404. ([#350](https://github.com/corenting/eddrit/issues/350))
@@ -95,9 +102,9 @@ stay off.
 | `MEDIA_CACHE_DIR` | `/media-cache` | Cache directory |
 | `MEDIA_CACHE_MAX_MB` | `5120` | Cache size limit |
 | `MEDIA_CACHE_DAYS` | `7` | Cache age limit |
-| `REDDIT_SESSION` | empty | `reddit_session` cookie of a throwaway account, for comment threads |
+| `REDDIT_SESSION` | empty | `reddit_session` cookie of a throwaway account, for comment threads and search |
 | `REDDIT_SESSION_IMPERSONATE` | `firefox147` | Browser fingerprint for session requests |
-| `THREAD_CACHE_SECONDS` | `300` | Thread cache in Valkey (`0` disables it) |
+| `THREAD_CACHE_SECONDS` | `300` | Thread and search cache in Valkey (`0` disables it) |
 | `INVIDIOUS_URL`, `NITTER_URL`, `PROXITOK_URL`, `RIMGO_URL`, `PRIVIBLUR_URL`, `SOPRANO_URL` | empty | Privacy frontends for third-party content |
 
 ### Notes

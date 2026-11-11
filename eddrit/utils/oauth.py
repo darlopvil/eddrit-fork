@@ -114,6 +114,34 @@ def _get_login_headers_from_cache() -> dict[str, Any]:
     return decoded_headers
 
 
+def android_app_identity() -> dict[str, str]:
+    """Headers of a new device of the official Android app: unique ID + random
+    user-agent. Also used to mint the session's API token (utils/session.py)."""
+    unique_uuid = str(uuid4())
+    android_app_version = random.choice(OFFICIAL_ANDROID_APP_VERSIONS)  # noqa: S311
+    android_version = random.choice(range(9, 15))  # noqa: S311
+    qos = f"{random.uniform(1.0, 100):.3f}"  # noqa: S311
+    video_codecs = "available-codecs=video/avc, video/hevc"
+    if random.choice([0, 1]) == 1:  # noqa: S311
+        video_codecs += ", video/x-vnd.on2.vp9"
+
+    return {
+        "User-Agent": f"Reddit/{android_app_version}/Android {android_version}",
+        "x-reddit-retry": "algo=no-retries",
+        "x-reddit-compression": "1",
+        "x-reddit-qos": qos,
+        "x-reddit-media-codecs": video_codecs,
+        "Client-Vendor-Id": unique_uuid,
+        "X-Reddit-Device-Id": unique_uuid,
+    }
+
+
+def android_app_basic_auth() -> str:
+    """Authorization header the Android app sends to mint its tokens."""
+    id_to_encode = f"{OFFICIAL_ANDROID_OAUTH_ID}:"
+    return f"Basic {standard_b64encode(id_to_encode.encode()).decode()}"
+
+
 def oauth_login() -> None:
     """
     Perform OAuth login to get headers matching the official Android app.
@@ -122,24 +150,7 @@ def oauth_login() -> None:
     valkey_client = valkey.Valkey(connection_pool=_valkey_connection_pool)
 
     with valkey_client.lock(_valkey_login_lock_key, timeout=20, blocking_timeout=5):
-        # Generate identity: unique ID + random user-agent
-        unique_uuid = str(uuid4())
-        android_app_version = random.choice(OFFICIAL_ANDROID_APP_VERSIONS)  # noqa: S311
-        android_version = random.choice(range(9, 15))  # noqa: S311
-        qos = f"{random.uniform(1.0, 100):.3f}"  # noqa: S311
-        video_codecs = "available-codecs=video/avc, video/hevc"
-        if random.choice([0, 1]) == 1:  # noqa: S311
-            video_codecs += ", video/x-vnd.on2.vp9"
-
-        common_headers = {
-            "User-Agent": f"Reddit/{android_app_version}/Android {android_version}",
-            "x-reddit-retry": "algo=no-retries",
-            "x-reddit-compression": "1",
-            "x-reddit-qos": qos,
-            "x-reddit-media-codecs": video_codecs,
-            "Client-Vendor-Id": unique_uuid,
-            "X-Reddit-Device-Id": unique_uuid,
-        }
+        common_headers = android_app_identity()
         logger.debug(
             f"Generated headers for official Android app login: {common_headers}"
         )
@@ -150,11 +161,10 @@ def oauth_login() -> None:
             proxy=PROXY,
             transport=get_httpx_transport(),
         )  # not async but not supported by cachier
-        id_to_encode = f"{OFFICIAL_ANDROID_OAUTH_ID}:"
         res = client.post(
             url="https://www.reddit.com/auth/v2/oauth/access-token/loid",
             headers={
-                "Authorization": f"Basic {standard_b64encode(id_to_encode.encode()).decode()}",
+                "Authorization": android_app_basic_auth(),
                 **common_headers,
             },
             json={"scopes": ["*", "email", "pii"]},
