@@ -37,12 +37,16 @@ stay off.
   back costs nothing, and the session is paused when Reddit reports fewer than 20 requests
   left in its window. While paused, the page says when to try again instead of failing.
 - **Search keeps working.** Since 11 Nov 2026 Reddit refuses post search to the anonymous
-  token on every host, and its website refuses every search to sessions. With
-  `REDDIT_SESSION` set, eddrit mints an API token for the session the way the Android app
-  does after logging in, and asks `oauth.reddit.com` with it. The anonymous token is still
-  tried first; once a search route is blocked for it, that route goes straight to the
-  session's token for 30 minutes. Searches share the account's quota, cache and pause with
-  threads.
+  token on its JSON API (every host), and its website refuses every search to sessions.
+  Post search now tries, in order:
+  1. The JSON API with the anonymous token, as before. Once Reddit blocks it, it is skipped
+     for 30 minutes, and used again by itself the day Reddit lifts the block.
+  2. Reddit's GraphQL API (the Android app's search query) with the same anonymous token.
+     It has its own quota (about 550 requests every 10 minutes) and doesn't touch the
+     account. Results are converted to the JSON API's format.
+  3. With `REDDIT_SESSION` set, the JSON API with a token minted for the session the way
+     the Android app does after logging in. It shares the account's quota and pause with
+     threads.
 - **Clear errors.** A rejected session (expired cookie or blocked fingerprint) gives a 503
   that says so, and a session at its limit gives a 429 with the waiting time, instead of a 500.
 - **Comment permalinks render the thread** instead of a 404. ([#350](https://github.com/corenting/eddrit/issues/350))

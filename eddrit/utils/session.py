@@ -28,6 +28,7 @@ the cookie (the account's 100 requests every 10 minutes), same pause.
 
 import json
 import zlib
+from collections.abc import Awaitable, Callable
 
 import httpx
 import valkey.asyncio as valkey_asyncio
@@ -262,15 +263,23 @@ async def _mark_anon_blocked(route: str) -> None:
         logger.exception("Cannot store an anonymous block in Valkey")
 
 
-async def get_api(http_client: httpx.AsyncClient, path: str) -> httpx.Response:
+async def get_api(
+    http_client: httpx.AsyncClient,
+    path: str,
+    alternative: Callable[[], Awaitable[dict]] | None = None,
+) -> httpx.Response:
     """GET an API route (oauth.reddit.com) that Reddit may refuse to the
     anonymous token, such as search.
 
-    Anonymous first, with `http_client`, the app's client. When Reddit blocks
-    the route for it and REDDIT_SESSION is set, the request is repeated with
-    the session's API token, and that route skips the anonymous token for
-    ANON_BLOCK_SECONDS. A token Reddit no longer accepts is minted again once.
-    Answers are cached for THREAD_CACHE_SECONDS.
+    In order, the first one that answers:
+    1. The anonymous token, with `http_client`, the app's client.
+    2. `alternative`, if given: another way to get the same answer without
+       the account (GraphQL for search), returning it in the JSON API's form.
+    3. The session's API token, if REDDIT_SESSION is set. A token Reddit no
+       longer accepts is minted again once.
+
+    When Reddit blocks the route for the anonymous token, the route skips it
+    for ANON_BLOCK_SECONDS. Answers are cached for THREAD_CACHE_SECONDS.
     """
     url = f"{REDDIT_BASE_API_URL}{path}"
     if cached := await _cache_get(path):
@@ -283,18 +292,36 @@ async def get_api(http_client: httpx.AsyncClient, path: str) -> httpx.Response:
         )
 
     route = path.split("?", 1)[0]
-    if not config.REDDIT_SESSION or not await _anon_blocked(route):
+    has_fallback = bool(config.REDDIT_SESSION) or alternative is not None
+    if not has_fallback or not await _anon_blocked(route):
         try:
             response = await http_client.get(url)
         except RateLimitedError:
-            if not config.REDDIT_SESSION:
+            if not has_fallback:
                 raise
             logger.warning(
-                f"Reddit blocks {route} for the anonymous token: using the "
-                f"session's API token for {ANON_BLOCK_SECONDS // 60} min"
+                f"Reddit blocks {route} for the anonymous token: skipping it "
+                f"for {ANON_BLOCK_SECONDS // 60} min"
             )
             await _mark_anon_blocked(route)
         else:
+            await _cache_put(path, response)
+            return response
+
+    if alternative is not None:
+        try:
+            listing = await alternative()
+        except Exception as e:
+            if not config.REDDIT_SESSION:
+                raise
+            logger.warning(
+                f"{route}: the way around the anonymous block failed ({e!r}), "
+                "using the session's API token"
+            )
+        else:
+            response = httpx.Response(
+                200, json=listing, request=httpx.Request("GET", url)
+            )
             await _cache_put(path, response)
             return response
 

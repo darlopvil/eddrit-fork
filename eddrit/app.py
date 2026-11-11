@@ -11,6 +11,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from eddrit import config
+from eddrit.reddit import gql
 from eddrit.routes.common import exception_handlers
 from eddrit.routes.pages import (
     index,
@@ -81,6 +82,7 @@ async def lifespan(app: Starlette) -> typing.AsyncIterator[State]:
             yield {"http_client": client}
         finally:
             await reddit_session.close()
+            await gql.close()
 
 
 def favicon_route(request):
