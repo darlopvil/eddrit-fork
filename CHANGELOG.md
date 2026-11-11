@@ -28,6 +28,7 @@
 - docs(readme): the fork is maintained independently, not kept in sync with upstream
 - fix(search): search through an API token minted for the session when Reddit blocks it for the anonymous token
 - feat(search): post search through Reddit's GraphQL API with the anonymous token, before the session
+- docs(readme): search gets its own section in the fork notes
 - docs(readme): fork notes grouped by topic, with every fork variable in one table
 
 ---

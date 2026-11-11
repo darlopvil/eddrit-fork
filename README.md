@@ -36,6 +36,14 @@ stay off.
   Threads are cached in Valkey for 5 minutes (`THREAD_CACHE_SECONDS`), so reloading or going
   back costs nothing, and the session is paused when Reddit reports fewer than 20 requests
   left in its window. While paused, the page says when to try again instead of failing.
+- **Clear errors.** A rejected session (expired cookie or blocked fingerprint) gives a 503
+  that says so, and a session at its limit gives a 429 with the waiting time, instead of a 500.
+- **Comment permalinks render the thread** instead of a 404. ([#350](https://github.com/corenting/eddrit/issues/350))
+- **A post page no longer fails when Reddit does not answer for its subreddit** (or user):
+  the post is fetched first and the sidebar falls back to defaults.
+
+### Search
+
 - **Search keeps working.** Since 11 Nov 2026 Reddit refuses post search to the anonymous
   token on its JSON API (every host), and its website refuses every search to sessions.
   Post search now tries, in order:
@@ -47,12 +55,7 @@ stay off.
   3. With `REDDIT_SESSION` set, the JSON API with a token minted for the session the way
      the Android app does after logging in. It shares the account's quota and pause with
      threads.
-- **Clear errors.** A rejected session (expired cookie or blocked fingerprint) gives a 503
-  that says so, and a session at its limit gives a 429 with the waiting time, instead of a 500.
-- **Comment permalinks render the thread** instead of a 404. ([#350](https://github.com/corenting/eddrit/issues/350))
-- **A post page no longer fails when Reddit does not answer for its subreddit** (or user):
-  the post is fetched first and the sidebar falls back to defaults.
-
+     
 ### Links
 
 - **Share links are resolved** via the app API: `/r/<sub>/s/<id>` and, since Nov 2026,
