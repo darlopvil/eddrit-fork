@@ -31,6 +31,7 @@
 - docs(readme): search gets its own section in the fork notes
 - fix(subreddit): a profile's own subreddit (`r/u_<name>`) opens the profile instead of a server error
 - fix(rss): feeds are built from the JSON listings, Reddit's API no longer serves its own feeds
+- feat(rss): entries show the picture, gallery or video, and the pages name their feed link like the feed
 - docs(readme): fork notes grouped by topic, with every fork variable in one table
 
 ---

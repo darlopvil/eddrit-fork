@@ -73,6 +73,7 @@ async def index(request: Request) -> Response:
             **get_templates_common_context(request),
             **get_canonical_url_context(request),
             "rss_feed_url": rss_feed_url,
+            "rss_feed_title": "eddrit: popular",
         },
     )
 

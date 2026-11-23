@@ -103,6 +103,7 @@ async def subreddit_or_user_post(request: Request) -> Response:
             **get_templates_common_context(request),
             **get_canonical_url_context(request),
             "rss_feed_url": _get_rss_feed_url(request),
+            "rss_feed_title": post.title,
         },
     )
 
@@ -373,6 +374,10 @@ async def subreddit_or_user(request: Request) -> Response:
                 sorting_period,
             ),
             "rss_feed_url": _get_rss_feed_url(request),
+            # Same name as the feed's own title (utils/atom.py)
+            "rss_feed_title": (
+                f"{'u' if is_user else 'r'}/{request.path_params['name']}"
+            ),
             **get_templates_common_context(request),
             **get_canonical_url_context(request),
         },

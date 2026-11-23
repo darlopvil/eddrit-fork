@@ -72,9 +72,12 @@ stay off.
 - **Feeds are built by eddrit.** Since Nov 2026 Reddit's API no longer serves its own feeds
   (a subreddit's comes back empty and titled "Not Found", a user's is a 404), while the JSON
   listings keep working. The Atom feeds of subreddits, users, the front page and threads are
-  now made from the same listing the page shows, with the feed's name (`r/<sub>`,
-  `u/<name>`, the post title), links to the instance, thumbnails through `/media` and links
-  to other sites through the privacy frontends.
+  now made from the same listing the page shows, named like the page (`r/<sub>`, `u/<name>`,
+  the post title; feed readers also see that name in the page's feed link). Entries show the
+  post as the page does: picture, whole gallery, video (MP4 and GIFs play; DASH gets its
+  poster and a link), embed or link card, then the text, with its subreddit, points and
+  comments. Comments say where they were written. Links point to the instance, media goes
+  through `/media` and links to other sites through the privacy frontends.
 
 ### Media
 

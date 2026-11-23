@@ -9,7 +9,7 @@
     <meta property="og:site_name" content="eddrit">
 
     {% if rss_feed_url is defined %}
-    <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ rss_feed_url }}" />
+    <link rel="alternate" type="application/atom+xml" title="{{ rss_feed_title | default('RSS') }}" href="{{ rss_feed_url }}" />
     {% endif %}
 
     {% if title is defined %}

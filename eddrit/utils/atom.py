@@ -39,25 +39,97 @@ def _media(url: str, instance: str) -> str:
     return f"{instance}{proxied}" if proxied.startswith("/") else proxied
 
 
-def _post_content(data: dict[str, Any], link: str, instance: str) -> str:
-    from eddrit.utils.frontends import frontend_href
+def _absolute(content: str, instance: str) -> str:
+    """Feed readers have no page to resolve relative links against."""
+    content = _to_instance(content, instance)
+    return content.replace('href="/', f'href="{instance}/').replace(
+        'src="/', f'src="{instance}/'
+    )
 
-    parts = []
-    thumbnail = html.unescape(data.get("thumbnail") or "")
-    if thumbnail.startswith("https://"):
-        parts.append(
-            f'<a href="{escape(link)}"><img src="{escape(_media(thumbnail, instance))}" alt=""></a>'
+
+def _img(url: str, link: str, instance: str) -> str:
+    return (
+        f'<p><a href="{escape(link)}"><img src="{escape(_media(url, instance))}" '
+        'alt="" style="max-width:100%"></a></p>'
+    )
+
+
+def _video(video: Any, link: str, instance: str) -> str:
+    """Readers can play an MP4 or a GIF, not Reddit's DASH: those get their
+    poster and a link to the post."""
+    from eddrit.models import PostVideoFormat
+
+    if video.video_format == PostVideoFormat.MP4 or video.is_gif:
+        poster = (
+            f' poster="{escape(_media(video.poster_url, instance))}"'
+            if video.poster_url
+            else ""
         )
-    if data.get("selftext_html"):
-        parts.append(_to_instance(html.unescape(data["selftext_html"]), instance))
-    url = html.unescape(data.get("url") or "")
-    if url and not data.get("is_self"):
-        target = frontend_href(_to_instance(url, instance))
-        parts.append(
-            f'<p><a href="{escape(target)}">[link]</a> · <a href="{escape(link)}">'
-            f"[{data.get('num_comments', 0)} comments]</a></p>"
+        loop = " autoplay loop muted" if video.is_gif else " controls"
+        return (
+            f'<p><video src="{escape(_media(video.url, instance))}"{poster}{loop} '
+            'style="max-width:100%"></video></p>'
         )
+    poster = _img(video.poster_url, link, instance) if video.poster_url else ""
+    return f'{poster}<p><a href="{escape(link)}">▶ Watch the video on eddrit</a></p>'
+
+
+def _post_content(data: dict[str, Any], link: str, instance: str) -> str:
+    """The post as the page shows it: picture, gallery, video, embed or link
+    card, then its text. Parsed with eddrit's own parser."""
+    from eddrit.models import PostContentType
+    from eddrit.reddit import parser
+    from eddrit.utils.frontends import embed_target, frontend_href
+
+    post = parser.parse_post(data)
+    content = post.content
+    parts = [
+        (
+            f"<p>r/{escape(post.subreddit)} · {escape(post.human_score)} points · "
+            f'<a href="{escape(link)}">{post.comments_count} comments</a></p>'
+        )
+    ]
+    target = frontend_href(_to_instance(post.url, instance))
+
+    if content.type == PostContentType.PICTURE:
+        parts.append(_img(content.picture.url, link, instance))
+    elif content.type == PostContentType.GALLERY:
+        for item, caption in zip(content.contents, content.captions, strict=False):
+            if hasattr(item, "is_gif"):
+                parts.append(_video(item, link, instance))
+            else:
+                parts.append(_img(item.url, link, instance))
+            if caption:
+                parts.append(f"<p><em>{escape(caption)}</em></p>")
+    elif content.type == PostContentType.VIDEO:
+        parts.extend(_video(video, link, instance) for video in content.videos[:1])
+    elif content.type == PostContentType.EMBED:
+        if content.poster_url:
+            parts.append(_img(content.poster_url, link, instance))
+        embed_href = embed_target(post.url)["href"]
+        parts.append(
+            f'<p><a href="{escape(embed_href)}">▶ {escape(post.domain)}</a></p>'
+        )
+    elif content.type == PostContentType.LINK:
+        if not post.thumbnail_is_icon and post.thumbnail_url.startswith("https://"):
+            parts.append(_img(post.thumbnail_url, target, instance))
+        parts.append(f'<p><a href="{escape(target)}">🔗 {escape(post.domain)}</a></p>')
+
+    if content.text:
+        parts.append(_absolute(content.text, instance))
     return "".join(parts)
+
+
+def _comment_content(data: dict[str, Any], instance: str) -> str:
+    """The comment, after a line saying where it was written."""
+    subreddit = data.get("subreddit") or ""
+    post_link = data.get("link_permalink") or ""
+    title = html.unescape(data.get("link_title") or "")
+    where = f"in r/{escape(subreddit)}"
+    if post_link and title:
+        where += f', on <a href="{escape(_absolute(post_link, instance))}">{escape(title)}</a>'
+    body = _absolute(html.unescape(data.get("body_html") or ""), instance)
+    return f"<p>{where}</p>{body}"
 
 
 def _entry(child: dict[str, Any], instance: str) -> str | None:
@@ -70,7 +142,7 @@ def _entry(child: dict[str, Any], instance: str) -> str | None:
         content = _post_content(data, link, instance)
     else:
         title = f"Comment on {html.unescape(data.get('link_title') or 'a post')}"
-        content = _to_instance(html.unescape(data.get("body_html") or ""), instance)
+        content = _comment_content(data, instance)
     author = data.get("author") or "[deleted]"
     subreddit = data.get("subreddit") or ""
     return (
