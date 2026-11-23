@@ -282,10 +282,35 @@ def _get_request_context_for_subreddit_or_user(
     return (is_user, sorting_mode, sorting_period, request_pagination)
 
 
+def _redirect_profile_subreddit(request: Request) -> RedirectResponse | None:
+    """
+    A profile's own subreddit (r/u_<name>, linked from posts made on a
+    profile) is the profile itself: Reddit's API answers its listing with a
+    redirect, which eddrit does not follow (500). Go to the profile instead,
+    like reddit.com does, keeping the sorting when profiles have it.
+    """
+    name = request.path_params["name"]
+    if request.url.path.startswith("/user") or not name.lower().startswith("u_"):
+        return None
+    username = name[2:]
+    if not username:
+        return None
+    url = f"/user/{username}"
+    sorting = request.path_params.get("sorting_mode")
+    if sorting in {mode.value for mode in models.UserSortingMode}:
+        url += f"/{sorting}"
+    if request.url.query:
+        url += f"?{request.url.query}"
+    return RedirectResponse(url=url)
+
+
 async def subreddit_or_user(request: Request) -> Response:
     """
     Endpoint for a subreddit or an user page.
     """
+    if redirect := _redirect_profile_subreddit(request):
+        return redirect
+
     is_user, sorting_mode, sorting_period, pagination = (
         _get_request_context_for_subreddit_or_user(request)
     )
