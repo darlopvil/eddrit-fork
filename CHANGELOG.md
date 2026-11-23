@@ -30,6 +30,7 @@
 - feat(search): post search through Reddit's GraphQL API with the anonymous token, before the session
 - docs(readme): search gets its own section in the fork notes
 - fix(subreddit): a profile's own subreddit (`r/u_<name>`) opens the profile instead of a server error
+- fix(rss): feeds are built from the JSON listings, Reddit's API no longer serves its own feeds
 - docs(readme): fork notes grouped by topic, with every fork variable in one table
 
 ---

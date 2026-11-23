@@ -62,10 +62,19 @@ stay off.
   links shared from a profile (`/user/<name>/s/<id>`), which used to land on a missing
   subreddit. ([#351](https://github.com/corenting/eddrit/issues/351))
 - **A subreddit that does not exist** shows "Subreddit not found" (404) instead of a server
-  error.
+  error, and a profile's own subreddit (`r/u_<name>`) opens the profile.
 - **No links to Reddit by accident.** Post titles and images that pointed at `i.redd.it`,
   `v.redd.it` or `reddit.com/gallery` open through the instance. The post page has an
   explicit "open on Reddit" link, tagged `?noredirect=1` so redirect rules can let it through.
+
+### RSS feeds
+
+- **Feeds are built by eddrit.** Since Nov 2026 Reddit's API no longer serves its own feeds
+  (a subreddit's comes back empty and titled "Not Found", a user's is a 404), while the JSON
+  listings keep working. The Atom feeds of subreddits, users, the front page and threads are
+  now made from the same listing the page shows, with the feed's name (`r/<sub>`,
+  `u/<name>`, the post title), links to the instance, thumbnails through `/media` and links
+  to other sites through the privacy frontends.
 
 ### Media
 

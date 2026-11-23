@@ -1,3 +1,4 @@
+import html
 from collections.abc import Iterable
 from dataclasses import fields
 from urllib.parse import quote_plus
@@ -7,6 +8,7 @@ import httpx
 from eddrit import models
 from eddrit.constants import REDDIT_BASE_API_URL
 from eddrit.reddit import gql, parser
+from eddrit.utils import atom
 from eddrit.utils.session import get_api, get_thread
 
 
@@ -157,39 +159,29 @@ async def get_subreddit_or_user_rss_feed(
     """
     Get the RSS feed for a subreddit or an user page.
 
-    Returns the RSS feed as text.
+    Returns the RSS feed as text. Built from the same JSON listing as the page
+    (see utils/atom.py: the API no longer serves Reddit's own feeds).
     """
     url, query_params = _get_url_and_query_parameters_for_subreddit_or_user(
         subreddit_or_username, sorting_mode, pagination, sorting_period, is_user
     )
-
-    return await _get_rss_feed_from_reddit(
-        http_client, url, query_params, eddrit_instance_scheme_and_netloc
-    )
-
-
-async def _get_rss_feed_from_reddit(
-    http_client: httpx.AsyncClient,
-    url: str,
-    query_params: dict,
-    eddrit_instance_scheme_and_netloc: str,
-) -> str:
-    """
-    Get RSS feed from reddit, replace links to point to current instance and return it.
-    """
-    url = url.removesuffix(".json")
-    url += ".rss"
-
     res = await http_client.get(url, params=query_params)
-    return _rewrite_rss_links(res.text, eddrit_instance_scheme_and_netloc)
 
-
-def _rewrite_rss_links(
-    rss_feed_content: str, eddrit_instance_scheme_and_netloc: str
-) -> str:
-    """Point the links of a Reddit RSS feed to the current instance."""
-    return rss_feed_content.replace(
-        "https://www.reddit.com", eddrit_instance_scheme_and_netloc
+    instance = eddrit_instance_scheme_and_netloc
+    if subreddit_or_username == "popular":
+        page_url, title = f"{instance}/", "eddrit: popular"
+    elif is_user:
+        page_url = f"{instance}/user/{subreddit_or_username}"
+        title = f"u/{subreddit_or_username}"
+    else:
+        page_url = f"{instance}/r/{subreddit_or_username}"
+        title = f"r/{subreddit_or_username}"
+    return atom.build_feed(
+        res.json()["data"]["children"],
+        title,
+        page_url,
+        f"{page_url.rstrip('/')}/.rss",
+        instance,
     )
 
 
@@ -233,11 +225,19 @@ async def get_post_rss(
     is_user: bool,
 ) -> str:
     path = _get_path_for_post(subreddit_or_username, post_id, is_user)
-    path = path.removesuffix(".json") + ".rss"
-    res = await get_thread(
-        http_client, path, headers={"Accept": "application/atom+xml, */*"}
+    res = await get_thread(http_client, path)
+    post_listing, comments_listing = res.json()
+    post = post_listing["data"]["children"][0]
+    instance = eddrit_instance_scheme_and_netloc
+    page_url = f"{instance}{post['data']['permalink']}"
+    # The post, then its top-level comments, like Reddit's thread feeds
+    return atom.build_feed(
+        [post, *comments_listing["data"]["children"]],
+        html.unescape(post["data"].get("title") or ""),
+        page_url,
+        f"{page_url.rstrip('/')}/.rss",
+        instance,
     )
-    return _rewrite_rss_links(res.text, eddrit_instance_scheme_and_netloc)
 
 
 async def get_wiki_page(
